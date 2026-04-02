@@ -154,8 +154,11 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
 
 export default function HeaderBar({ user, onGoModules, onLogout, theme, currentModuleTitle, navItems, activeNav, onSwitchPage }) {
   return (
-    <div className={cn("sticky top-0 z-30 border-b backdrop-blur-xl", theme.header)}>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-6">
+    <div
+      className={cn("sticky top-0 z-30 border-b backdrop-blur-xl", theme.header)}
+      style={{ height: "var(--header-height)" }}
+    >
+      <div className="flex h-full items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-9 w-9 items-center justify-center rounded-2xl border", theme.card)}>
             <Sparkles className="h-4 w-4" />
