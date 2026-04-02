@@ -11,6 +11,7 @@ import {
   Search,
   Shield,
   Ticket,
+  UserCircle2,
   Workflow,
 } from "lucide-react"
 import {
