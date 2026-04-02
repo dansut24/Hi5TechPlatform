@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+  --header-height: 88px;
+}
+
 html,
 body {
   margin: 0;
