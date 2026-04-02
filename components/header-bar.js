@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Bell, ChevronRight, Sparkles } from "lucide-react"
+import { Bell, ChevronRight, PanelLeft, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
 function HeaderWorkspaceSwitch({ currentModuleTitle, navItems, activeNav, onSwitch, theme }) {
@@ -152,12 +152,20 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
   )
 }
 
-export default function HeaderBar({ user, onGoModules, onLogout, theme, currentModuleTitle, navItems, activeNav, onSwitchPage }) {
+export default function HeaderBar({
+  user,
+  onGoModules,
+  onLogout,
+  theme,
+  currentModuleTitle,
+  navItems,
+  activeNav,
+  onSwitchPage,
+  navMode,
+  setNavMode,
+}) {
   return (
-    <div
-  className={cn("relative z-30 border-b backdrop-blur-xl", theme.header)}
-  style={{ height: "var(--header-height)" }}
->
+    <div className={cn("relative z-30 border-b backdrop-blur-xl", theme.header)} style={{ height: "var(--header-height)" }}>
       <div className="flex h-full items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-9 w-9 items-center justify-center rounded-2xl border", theme.card)}>
@@ -169,13 +177,14 @@ export default function HeaderBar({ user, onGoModules, onLogout, theme, currentM
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <HeaderWorkspaceSwitch
-            currentModuleTitle={currentModuleTitle}
-            navItems={navItems}
-            activeNav={activeNav}
-            onSwitch={onSwitchPage}
-            theme={theme}
-          />
+          <button
+            onClick={() => setNavMode((prev) => (prev === "floating" ? "sidebar" : "floating"))}
+            className={cn("hidden h-9 items-center gap-2 rounded-xl border px-3 text-sm transition lg:flex", theme.card, theme.hover)}
+          >
+            <PanelLeft className="h-4 w-4" />
+            <span>{navMode === "floating" ? "Sidebar" : "Floating"}</span>
+          </button>
+          <HeaderWorkspaceSwitch currentModuleTitle={currentModuleTitle} navItems={navItems} activeNav={activeNav} onSwitch={onSwitchPage} theme={theme} />
           <NotificationBell theme={theme} />
           <ProfileMenu user={user} onGoModules={onGoModules} onLogout={onLogout} theme={theme} />
         </div>
