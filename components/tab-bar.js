@@ -10,9 +10,8 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
 
   return (
     <div
-      className={cn("sticky z-20 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}
-      style={{ top: "var(--header-height)" }}
-    >
+  className={cn("sticky top-0 z-20 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}
+>
       <div className="flex items-center gap-2 overflow-x-auto">
         {openTabs.map((tab) => (
           <button
