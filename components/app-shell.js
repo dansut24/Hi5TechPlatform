@@ -4,7 +4,13 @@ import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
-import { signInWithGitHub, signInWithGoogle, signInWithMicrosoft, signInWithPassword } from "@/lib/supabase/auth"
+import {
+  signInWithGitHub,
+  signInWithGoogle,
+  signInWithMicrosoft,
+  signInWithPassword,
+  signUpWithPassword,
+} from "@/lib/supabase/auth"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
@@ -51,6 +57,7 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
   const [password, setPassword] = useState("")
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState("")
+  const [authMode, setAuthMode] = useState("signin")
 
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
   const navItems = navByModule[currentModule]
@@ -165,14 +172,40 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
     router.push("/login")
   }
 
-  const handlePasswordLogin = async () => {
+  const handlePasswordAuth = async () => {
     try {
-      setAuthLoading(true)
       setAuthError("")
-      await signInWithPassword({ email, password })
-      router.push("/select-module")
+
+      const trimmedEmail = email.trim()
+
+      if (!trimmedEmail || !password) {
+        setAuthError("Please enter your email and password")
+        return
+      }
+
+      setAuthLoading(true)
+
+      if (authMode === "signin") {
+        await signInWithPassword({
+          email: trimmedEmail,
+          password,
+        })
+        router.push("/select-module")
+        return
+      }
+
+      const result = await signUpWithPassword({
+        email: trimmedEmail,
+        password,
+      })
+
+      if (result?.user && !result?.session) {
+        setAuthError("Account created. Check your email to confirm your address before signing in.")
+      } else {
+        router.push("/select-module")
+      }
     } catch (error) {
-      setAuthError(error.message || "Unable to sign in")
+      setAuthError(error.message || "Unable to continue")
     } finally {
       setAuthLoading(false)
     }
@@ -236,8 +269,27 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
             </div>
 
             <div className={`rounded-[28px] border shadow-2xl backdrop-blur-2xl p-6 lg:p-8 ${theme.card}`}>
-              <div className="text-2xl font-semibold">Sign in</div>
-              <div className={`mt-1 text-sm ${theme.muted}`}>Access your tenant workspace and launch the right module.</div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-2xl font-semibold">
+                    {authMode === "signin" ? "Sign in" : "Create account"}
+                  </div>
+                  <div className={`mt-1 text-sm ${theme.muted}`}>
+                    {authMode === "signin"
+                      ? "Access your tenant workspace and launch the right module."
+                      : "Create your account to start using the workspace."}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setAuthError("")
+                    setAuthMode((prev) => (prev === "signin" ? "signup" : "signin"))
+                  }}
+                  className={`rounded-2xl border px-3 py-2 text-sm transition ${theme.card} ${theme.hover}`}
+                >
+                  {authMode === "signin" ? "Create account" : "Back to sign in"}
+                </button>
+              </div>
 
               <div className="mt-6 space-y-4">
                 <input
@@ -245,6 +297,7 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                   onChange={(e) => setEmail(e.target.value)}
                   className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
                   placeholder="dan@hi5tech.co.uk"
+                  autoComplete="email"
                 />
                 <input
                   type="password"
@@ -252,12 +305,13 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                   onChange={(e) => setPassword(e.target.value)}
                   className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
                   placeholder="••••••••••••"
+                  autoComplete={authMode === "signin" ? "current-password" : "new-password"}
                 />
 
                 {authError ? <div className="text-sm text-rose-400">{authError}</div> : null}
 
                 <button
-                  onClick={handlePasswordLogin}
+                  onClick={handlePasswordAuth}
                   disabled={authLoading}
                   className={
                     theme.resolved === "light"
@@ -265,7 +319,13 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                       : "w-full rounded-2xl bg-white px-4 py-3 text-slate-950 disabled:opacity-60"
                   }
                 >
-                  {authLoading ? "Signing in..." : "Sign in to workspace"}
+                  {authLoading
+                    ? authMode === "signin"
+                      ? "Signing in..."
+                      : "Creating account..."
+                    : authMode === "signin"
+                      ? "Sign in to workspace"
+                      : "Create account"}
                 </button>
 
                 <div className={`relative py-2 ${theme.muted}`}>
@@ -273,7 +333,11 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                     <div className={`w-full border-t ${theme.line}`} />
                   </div>
                   <div className="relative flex justify-center">
-                    <span className={`px-3 text-xs uppercase tracking-wide ${theme.resolved === "light" ? "bg-white text-slate-500" : "bg-[#0b0d12] text-slate-500"}`}>
+                    <span
+                      className={`px-3 text-xs uppercase tracking-wide ${
+                        theme.resolved === "light" ? "bg-white text-slate-500" : "bg-[#0b0d12] text-slate-500"
+                      }`}
+                    >
                       or continue with
                     </span>
                   </div>
@@ -305,6 +369,7 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                   </button>
 
                   <button
+                    type="button"
                     className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
                   >
                     <SSOMark className="h-5 w-5" />
