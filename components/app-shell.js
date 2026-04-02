@@ -4,12 +4,14 @@ import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
+import { signInWithGitHub, signInWithGoogle, signInWithMicrosoft, signInWithPassword } from "@/lib/supabase/auth"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
 import GlobalSearchModal from "@/components/global-search-modal"
 import ModuleSelector from "@/components/module-selector"
 import ModuleContent from "@/components/module-content"
+import { MicrosoftMark, GoogleMark, GitHubMark, SSOMark } from "@/components/shared-ui"
 
 const moduleRouteMap = {
   "/itsm": "itsm",
@@ -45,6 +47,11 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
   const [openTabs, setOpenTabs] = useState([{ id: "dashboard", pageId: "dashboard", label: "Dashboard", closable: false }])
   const [activeTabId, setActiveTabId] = useState("dashboard")
 
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState("")
+
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
   const navItems = navByModule[currentModule]
   const currentModuleTitle = modules.find((module) => module.id === currentModule)?.title || "Workspace"
@@ -54,10 +61,12 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
       setAppState("login")
       return
     }
+
     if (pathname === "/select-module") {
       setAppState("modules")
       return
     }
+
     if (moduleRouteMap[pathname]) {
       const moduleId = moduleRouteMap[pathname]
       const firstPage = navByModule[moduleId][0]
@@ -156,6 +165,33 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
     router.push("/login")
   }
 
+  const handlePasswordLogin = async () => {
+    try {
+      setAuthLoading(true)
+      setAuthError("")
+      await signInWithPassword({ email, password })
+      router.push("/select-module")
+    } catch (error) {
+      setAuthError(error.message || "Unable to sign in")
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleOAuthLogin = async (provider) => {
+    try {
+      setAuthLoading(true)
+      setAuthError("")
+
+      if (provider === "google") await signInWithGoogle()
+      if (provider === "microsoft") await signInWithMicrosoft()
+      if (provider === "github") await signInWithGitHub()
+    } catch (error) {
+      setAuthError(error.message || "Unable to sign in")
+      setAuthLoading(false)
+    }
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme.app}`}>
       <GlobalSearchModal
@@ -183,23 +219,98 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
                       <div className="text-xl font-semibold tracking-tight">Hi5Tech Platform</div>
                     </div>
                   </div>
+
                   <div className="mt-12 max-w-xl">
-                    <div className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${theme.card} ${theme.muted}`}>Unified operations</div>
-                    <h1 className="mt-4 text-4xl font-semibold tracking-tight lg:text-5xl">Run service, support, devices, and self-service from one platform.</h1>
-                    <p className={`mt-4 text-base lg:text-lg ${theme.muted}`}>A modern multi-module workspace for ITSM, RMM, asset management, automation, analytics, and end-user support.</p>
+                    <div className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${theme.card} ${theme.muted}`}>
+                      Unified operations
+                    </div>
+                    <h1 className="mt-4 text-4xl font-semibold tracking-tight lg:text-5xl">
+                      Run service, support, devices, and self-service from one platform.
+                    </h1>
+                    <p className={`mt-4 text-base lg:text-lg ${theme.muted}`}>
+                      A modern multi-module workspace for ITSM, RMM, asset management, automation, analytics, and end-user support.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
+
             <div className={`rounded-[28px] border shadow-2xl backdrop-blur-2xl p-6 lg:p-8 ${theme.card}`}>
               <div className="text-2xl font-semibold">Sign in</div>
               <div className={`mt-1 text-sm ${theme.muted}`}>Access your tenant workspace and launch the right module.</div>
+
               <div className="mt-6 space-y-4">
-                <input className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`} placeholder="dan@hi5tech.co.uk" />
-                <input type="password" className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`} placeholder="••••••••••••" />
-                <button onClick={() => router.push("/select-module")} className={theme.resolved === "light" ? "w-full rounded-2xl bg-slate-950 px-4 py-3 text-white" : "w-full rounded-2xl bg-white px-4 py-3 text-slate-950"}>
-                  Sign in to workspace
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
+                  placeholder="dan@hi5tech.co.uk"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
+                  placeholder="••••••••••••"
+                />
+
+                {authError ? <div className="text-sm text-rose-400">{authError}</div> : null}
+
+                <button
+                  onClick={handlePasswordLogin}
+                  disabled={authLoading}
+                  className={
+                    theme.resolved === "light"
+                      ? "w-full rounded-2xl bg-slate-950 px-4 py-3 text-white disabled:opacity-60"
+                      : "w-full rounded-2xl bg-white px-4 py-3 text-slate-950 disabled:opacity-60"
+                  }
+                >
+                  {authLoading ? "Signing in..." : "Sign in to workspace"}
                 </button>
+
+                <div className={`relative py-2 ${theme.muted}`}>
+                  <div className="absolute inset-0 flex items-center">
+                    <div className={`w-full border-t ${theme.line}`} />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className={`px-3 text-xs uppercase tracking-wide ${theme.resolved === "light" ? "bg-white text-slate-500" : "bg-[#0b0d12] text-slate-500"}`}>
+                      or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    onClick={() => handleOAuthLogin("microsoft")}
+                    className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
+                  >
+                    <MicrosoftMark className="h-5 w-5" />
+                    <span>Microsoft 365</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOAuthLogin("google")}
+                    className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
+                  >
+                    <GoogleMark className="h-5 w-5" />
+                    <span>Google</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOAuthLogin("github")}
+                    className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
+                  >
+                    <GitHubMark className="h-5 w-5" />
+                    <span>GitHub</span>
+                  </button>
+
+                  <button
+                    className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
+                  >
+                    <SSOMark className="h-5 w-5" />
+                    <span>SAML SSO</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
