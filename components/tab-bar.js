@@ -1,39 +1,145 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronRight, Plus, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
-export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onAdd, navItems, currentModuleTitle, theme }) {
+export default function TabBar({
+  openTabs,
+  activeTabId,
+  onActivate,
+  onClose,
+  onAdd,
+  navItems,
+  currentModuleTitle,
+  theme,
+}) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const scrollRef = useRef(null)
+  const tabRefs = useRef({})
+
+  const activeTab = useMemo(
+    () => openTabs.find((tab) => tab.id === activeTabId),
+    [openTabs, activeTabId]
+  )
+
+  const updateScrollState = () => {
+    const el = scrollRef.current
+    if (!el) return
+
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }
+
+  const scrollTabsBy = (amount) => {
+    const el = scrollRef.current
+    if (!el) return
+
+    el.scrollBy({
+      left: amount,
+      behavior: "smooth",
+    })
+  }
+
+  useEffect(() => {
+    updateScrollState()
+    const el = scrollRef.current
+    if (!el) return
+
+    const handleScroll = () => updateScrollState()
+    el.addEventListener("scroll", handleScroll)
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateScrollState()
+    })
+
+    resizeObserver.observe(el)
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll)
+      resizeObserver.disconnect()
+    }
+  }, [openTabs])
+
+  useEffect(() => {
+    const tabEl = tabRefs.current[activeTabId]
+    if (!tabEl) return
+
+    tabEl.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    })
+  }, [activeTabId, openTabs])
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
-      <div className="flex items-center gap-2 overflow-x-auto">
-        {openTabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onActivate(tab.id)}
-            className={cn(
-              "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
-              tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
-            )}
-          >
-            <span className="max-w-[160px] truncate">{tab.label}</span>
-            {tab.closable ? (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClose(tab.id)
-                }}
-                className="rounded-md p-0.5 opacity-70 transition hover:bg-black/10 hover:opacity-100"
-              >
-                <X className="h-3.5 w-3.5" />
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => scrollTabsBy(-220)}
+          disabled={!canScrollLeft}
+          className={cn(
+            "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+            theme.card,
+            theme.hover,
+            !canScrollLeft ? "pointer-events-none opacity-35" : ""
+          )}
+          aria-label="Scroll tabs left"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        <div
+          ref={scrollRef}
+          className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scroll-smooth"
+        >
+          {openTabs.map((tab) => (
+            <button
+              key={tab.id}
+              ref={(el) => {
+                if (el) tabRefs.current[tab.id] = el
+              }}
+              onClick={() => onActivate(tab.id)}
+              className={cn(
+                "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
+              )}
+            >
+              <span className="max-w-[160px] truncate">{tab.label}</span>
+              {tab.closable ? (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose(tab.id)
+                  }}
+                  className="rounded-md p-0.5 opacity-70 transition hover:bg-black/10 hover:opacity-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => scrollTabsBy(220)}
+          disabled={!canScrollRight}
+          className={cn(
+            "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+            theme.card,
+            theme.hover,
+            !canScrollRight ? "pointer-events-none opacity-35" : ""
+          )}
+          aria-label="Scroll tabs right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
 
         <div className="relative shrink-0">
           <button
@@ -51,7 +157,7 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.16 }}
-                className={cn("absolute left-0 top-12 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
+                className={cn("absolute right-0 top-12 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
               >
                 <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>
                   {currentModuleTitle} pages
