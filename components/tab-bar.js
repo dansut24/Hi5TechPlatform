@@ -31,8 +31,10 @@ export default function TabBar({
     const el = scrollRef.current
     if (!el) return
 
-    setCanScrollLeft(el.scrollLeft > 4)
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    const maxScrollLeft = el.scrollWidth - el.clientWidth
+
+    setCanScrollLeft(el.scrollLeft > 6)
+    setCanScrollRight(el.scrollLeft < maxScrollLeft - 12)
   }
 
   const scrollTabsBy = (amount) => {
@@ -75,6 +77,12 @@ export default function TabBar({
       inline: "nearest",
       block: "nearest",
     })
+
+    const timer = window.setTimeout(() => {
+      updateScrollState()
+    }, 220)
+
+    return () => window.clearTimeout(timer)
   }, [activeTab, activeTabId, openTabs])
 
   return (
@@ -99,7 +107,7 @@ export default function TabBar({
           {canScrollLeft ? (
             <div
               className={cn(
-                "pointer-events-none absolute left-0 top-0 z-10 hidden h-full w-12 lg:block",
+                "pointer-events-none absolute left-0 top-0 z-10 hidden h-full w-8 lg:block",
                 theme.resolved === "light"
                   ? "bg-gradient-to-r from-white/95 to-transparent"
                   : theme.resolved === "emerald"
@@ -114,7 +122,7 @@ export default function TabBar({
           {canScrollRight ? (
             <div
               className={cn(
-                "pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-12 lg:block",
+                "pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-8 lg:block",
                 theme.resolved === "light"
                   ? "bg-gradient-to-l from-white/95 to-transparent"
                   : theme.resolved === "emerald"
@@ -128,7 +136,7 @@ export default function TabBar({
 
           <div
             ref={scrollRef}
-            className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto scroll-smooth px-1"
+            className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto scroll-smooth px-1 lg:pr-3"
           >
             {openTabs.map((tab) => (
               <button
