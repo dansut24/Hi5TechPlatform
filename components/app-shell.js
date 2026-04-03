@@ -338,17 +338,11 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
 
           <div className={desktopContentOffset}>
             <HeaderBar
-              user={user}
-              onGoModules={goToModules}
-              onLogout={goToLogin}
-              theme={theme}
-              currentModuleTitle={currentModuleTitle}
-              navItems={navItems}
-              activeNav={activeNav}
-              onSwitchPage={switchPage}
-              navMode={navMode}
-              setNavMode={setNavMode}
-            />
+  theme={theme}
+  currentModuleTitle={currentModuleTitle}
+  navItems={navItems}
+  activeNav={activeNav}
+/>
             <TabBar
               openTabs={openTabs}
               activeTabId={activeTabId}
