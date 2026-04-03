@@ -202,12 +202,15 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
         return
       }
       setAuthLoading(true)
+
       if (authMode === "signin") {
         await signInWithPassword({ email: trimmedEmail, password })
-window.location.href = "/select-module"
+        window.location.href = "/select-module"
         return
       }
+
       const result = await signUpWithPassword({ email: trimmedEmail, password })
+
       if (result?.user && !result?.session) {
         setAuthError("Account created. Check your email to confirm your address before signing in.")
       } else {
@@ -277,7 +280,13 @@ window.location.href = "/select-module"
                   <div className="text-2xl font-semibold">{authMode === "signin" ? "Sign in" : "Create account"}</div>
                   <div className={`mt-1 text-sm ${theme.muted}`}>{authMode === "signin" ? "Access your tenant workspace and launch the right module." : "Create your account to start using the workspace."}</div>
                 </div>
-                <button onClick={() => { setAuthError(""); setAuthMode((prev) => (prev === "signin" ? "signup" : "signin")) }} className={`rounded-2xl border px-3 py-2 text-sm transition ${theme.card} ${theme.hover}`}>
+                <button
+                  onClick={() => {
+                    setAuthError("")
+                    setAuthMode((prev) => (prev === "signin" ? "signup" : "signin"))
+                  }}
+                  className={`rounded-2xl border px-3 py-2 text-sm transition ${theme.card} ${theme.hover}`}
+                >
                   {authMode === "signin" ? "Create account" : "Back to sign in"}
                 </button>
               </div>
