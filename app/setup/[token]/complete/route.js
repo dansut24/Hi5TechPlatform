@@ -67,6 +67,21 @@ export async function GET(_request, context) {
       throw new Error("Failed to generate owner invite link")
     }
 
+    const { error: profileError } = await admin
+      .from("profiles")
+      .upsert(
+        {
+          id: authUserId,
+          email: signup.superuser_email,
+          full_name: signup.full_name,
+          initials: initialsFromName(signup.full_name, signup.superuser_email),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      )
+
+    if (profileError) throw profileError
+
     const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
     const { data: tenant, error: tenantError } = await admin
@@ -83,21 +98,6 @@ export async function GET(_request, context) {
       .single()
 
     if (tenantError) throw tenantError
-
-    const { error: profileError } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: authUserId,
-          email: signup.superuser_email,
-          full_name: signup.full_name,
-          initials: initialsFromName(signup.full_name, signup.superuser_email),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
-
-    if (profileError) throw profileError
 
     const { error: membershipError } = await admin
       .from("memberships")
