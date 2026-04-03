@@ -47,6 +47,7 @@ export default function TabBar({
 
   useEffect(() => {
     updateScrollState()
+
     const el = scrollRef.current
     if (!el) return
 
@@ -74,82 +75,104 @@ export default function TabBar({
       inline: "nearest",
       block: "nearest",
     })
-  }, [activeTabId, openTabs])
+  }, [activeTab, activeTabId, openTabs])
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
-      <div className="flex items-center gap-2">
-        {canScrollRight && (
-  <button
-    type="button"
-    onClick={() => scrollTabsBy(220)}
-    className={cn(
-      "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-      theme.card,
-      theme.hover
-    )}
-  >
-    <ChevronRight className="h-4 w-4" />
-  </button>
-)}
-          className={cn(
-            "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-            theme.card,
-            theme.hover,
-            !canScrollLeft ? "pointer-events-none opacity-35" : ""
-          )}
-          aria-label="Scroll tabs left"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
+      <div className="relative flex items-center gap-2">
+        {canScrollLeft ? (
+          <button
+            type="button"
+            onClick={() => scrollTabsBy(-220)}
+            className={cn(
+              "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+              theme.card,
+              theme.hover
+            )}
+            aria-label="Scroll tabs left"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        ) : null}
 
-        <div
-          ref={scrollRef}
-          className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scroll-smooth"
-        >
-          {openTabs.map((tab) => (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                if (el) tabRefs.current[tab.id] = el
-              }}
-              onClick={() => onActivate(tab.id)}
+        <div className="relative min-w-0 flex-1">
+          {canScrollLeft ? (
+            <div
               className={cn(
-                "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
-                tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
+                "pointer-events-none absolute left-0 top-0 z-10 hidden h-full w-12 lg:block",
+                theme.resolved === "light"
+                  ? "bg-gradient-to-r from-white/95 to-transparent"
+                  : theme.resolved === "emerald"
+                    ? "bg-gradient-to-r from-[#041811]/95 to-transparent"
+                    : theme.resolved === "midnight"
+                      ? "bg-gradient-to-r from-[#06101f]/95 to-transparent"
+                      : "bg-gradient-to-r from-slate-950/95 to-transparent"
               )}
-            >
-              <span className="max-w-[160px] truncate">{tab.label}</span>
-              {tab.closable ? (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onClose(tab.id)
-                  }}
-                  className="rounded-md p-0.5 opacity-70 transition hover:bg-black/10 hover:opacity-100"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </span>
-              ) : null}
-            </button>
-          ))}
+            />
+          ) : null}
+
+          {canScrollRight ? (
+            <div
+              className={cn(
+                "pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-12 lg:block",
+                theme.resolved === "light"
+                  ? "bg-gradient-to-l from-white/95 to-transparent"
+                  : theme.resolved === "emerald"
+                    ? "bg-gradient-to-l from-[#041811]/95 to-transparent"
+                    : theme.resolved === "midnight"
+                      ? "bg-gradient-to-l from-[#06101f]/95 to-transparent"
+                      : "bg-gradient-to-l from-slate-950/95 to-transparent"
+              )}
+            />
+          ) : null}
+
+          <div
+            ref={scrollRef}
+            className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto scroll-smooth px-1"
+          >
+            {openTabs.map((tab) => (
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  if (el) tabRefs.current[tab.id] = el
+                }}
+                onClick={() => onActivate(tab.id)}
+                className={cn(
+                  "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                  tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
+                )}
+              >
+                <span className="max-w-[160px] truncate">{tab.label}</span>
+                {tab.closable ? (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onClose(tab.id)
+                    }}
+                    className="rounded-md p-0.5 opacity-70 transition hover:bg-black/10 hover:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {canScrollLeft && (
-  <button
-    type="button"
-    onClick={() => scrollTabsBy(-220)}
-    className={cn(
-      "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-      theme.card,
-      theme.hover
-    )}
-  >
-    <ChevronLeft className="h-4 w-4" />
-  </button>
-)}
-          <ChevronRight className="h-4 w-4" />
-        </button>
+        {canScrollRight ? (
+          <button
+            type="button"
+            onClick={() => scrollTabsBy(220)}
+            className={cn(
+              "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+              theme.card,
+              theme.hover
+            )}
+            aria-label="Scroll tabs right"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        ) : null}
 
         <div className="relative shrink-0">
           <button
