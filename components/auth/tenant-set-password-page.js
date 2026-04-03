@@ -115,8 +115,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
         throw new Error(finalizeJson.error || "Failed to finalize workspace")
       }
 
-      await supabase.auth.signOut()
-      router.replace(`/tenant/${slug}/login?ready=1`)
+      router.replace(`/tenant/${slug}`)
     } catch (err) {
       setError(err.message || "Failed to set password")
     } finally {
