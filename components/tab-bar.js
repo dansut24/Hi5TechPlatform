@@ -24,14 +24,27 @@ export default function TabBar({
 
   const scrollRef = useRef(null)
   const tabRefs = useRef({})
+  const scrollTimerRef = useRef(null)
+
+  const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 1024
 
   const updateScrollState = () => {
     const el = scrollRef.current
     if (!el) return
 
-    const maxScrollLeft = el.scrollWidth - el.clientWidth
+    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth)
     setCanScrollLeft(el.scrollLeft > 6)
-    setCanScrollRight(el.scrollLeft < maxScrollLeft - 12)
+    setCanScrollRight(el.scrollLeft < maxScrollLeft - 6)
+  }
+
+  const scheduleScrollStateRefresh = () => {
+    if (scrollTimerRef.current) {
+      window.clearTimeout(scrollTimerRef.current)
+    }
+
+    scrollTimerRef.current = window.setTimeout(() => {
+      updateScrollState()
+    }, 240)
   }
 
   const scrollTabsBy = (amount) => {
@@ -42,6 +55,8 @@ export default function TabBar({
       left: amount,
       behavior: "smooth",
     })
+
+    scheduleScrollStateRefresh()
   }
 
   const scrollActiveTabIntoView = () => {
@@ -49,35 +64,41 @@ export default function TabBar({
     const tabEl = tabRefs.current[activeTabId]
     if (!container || !tabEl) return
 
-    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024
+    if (!isDesktop()) {
+      tabEl.scrollIntoView({
+        behavior: "smooth",
+        inline: "nearest",
+        block: "nearest",
+      })
+      scheduleScrollStateRefresh()
+      return
+    }
 
     const tabLeft = tabEl.offsetLeft
     const tabRight = tabLeft + tabEl.offsetWidth
 
     const visibleLeft = container.scrollLeft
-    const visibleRight =
-      container.scrollLeft +
-      container.clientWidth -
-      (isDesktop && canScrollRight ? DESKTOP_RIGHT_ARROW_SPACE : 0)
+    const visibleRight = container.scrollLeft + container.clientWidth - (canScrollRight ? DESKTOP_RIGHT_ARROW_SPACE : 0)
 
     let nextScrollLeft = container.scrollLeft
 
     if (tabLeft < visibleLeft) {
       nextScrollLeft = Math.max(0, tabLeft - 8)
     } else if (tabRight > visibleRight) {
-      nextScrollLeft =
-        tabRight -
-        container.clientWidth +
-        (isDesktop ? DESKTOP_RIGHT_ARROW_SPACE : 0) +
-        8
+      nextScrollLeft = Math.min(
+        container.scrollWidth - container.clientWidth,
+        tabRight - container.clientWidth + DESKTOP_RIGHT_ARROW_SPACE + 8
+      )
     }
 
-    if (nextScrollLeft !== container.scrollLeft) {
+    if (Math.abs(nextScrollLeft - container.scrollLeft) > 1) {
       container.scrollTo({
         left: nextScrollLeft,
         behavior: "smooth",
       })
     }
+
+    scheduleScrollStateRefresh()
   }
 
   useEffect(() => {
@@ -87,7 +108,7 @@ export default function TabBar({
     if (!el) return
 
     const handleScroll = () => updateScrollState()
-    el.addEventListener("scroll", handleScroll)
+    el.addEventListener("scroll", handleScroll, { passive: true })
 
     const resizeObserver = new ResizeObserver(() => {
       updateScrollState()
@@ -95,21 +116,22 @@ export default function TabBar({
 
     resizeObserver.observe(el)
 
+    const handleResize = () => updateScrollState()
+    window.addEventListener("resize", handleResize)
+
     return () => {
       el.removeEventListener("scroll", handleScroll)
       resizeObserver.disconnect()
+      window.removeEventListener("resize", handleResize)
+      if (scrollTimerRef.current) {
+        window.clearTimeout(scrollTimerRef.current)
+      }
     }
   }, [openTabs])
 
   useEffect(() => {
     scrollActiveTabIntoView()
-
-    const timer = window.setTimeout(() => {
-      updateScrollState()
-    }, 260)
-
-    return () => window.clearTimeout(timer)
-  }, [activeTabId, openTabs, canScrollRight])
+  }, [activeTabId, openTabs])
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
