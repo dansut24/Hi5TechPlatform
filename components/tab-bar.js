@@ -1,9 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+
+const DESKTOP_ARROW_SPACE = 56
+const EDGE_FADE_WIDTH = 36
 
 export default function TabBar({
   openTabs,
@@ -22,17 +25,11 @@ export default function TabBar({
   const scrollRef = useRef(null)
   const tabRefs = useRef({})
 
-  const activeTab = useMemo(
-    () => openTabs.find((tab) => tab.id === activeTabId),
-    [openTabs, activeTabId]
-  )
-
   const updateScrollState = () => {
     const el = scrollRef.current
     if (!el) return
 
     const maxScrollLeft = el.scrollWidth - el.clientWidth
-
     setCanScrollLeft(el.scrollLeft > 6)
     setCanScrollRight(el.scrollLeft < maxScrollLeft - 12)
   }
@@ -45,6 +42,36 @@ export default function TabBar({
       left: amount,
       behavior: "smooth",
     })
+  }
+
+  const scrollActiveTabIntoSafeView = () => {
+    const container = scrollRef.current
+    const tabEl = tabRefs.current[activeTabId]
+    if (!container || !tabEl) return
+
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024
+    const leftSafeInset = isDesktop && canScrollLeft ? DESKTOP_ARROW_SPACE : 0
+    const rightSafeInset = isDesktop && canScrollRight ? DESKTOP_ARROW_SPACE : 0
+
+    const tabLeft = tabEl.offsetLeft
+    const tabRight = tabLeft + tabEl.offsetWidth
+    const visibleLeft = container.scrollLeft + leftSafeInset
+    const visibleRight = container.scrollLeft + container.clientWidth - rightSafeInset
+
+    let nextScrollLeft = container.scrollLeft
+
+    if (tabLeft < visibleLeft) {
+      nextScrollLeft = Math.max(0, tabLeft - leftSafeInset - 8)
+    } else if (tabRight > visibleRight) {
+      nextScrollLeft = tabRight - container.clientWidth + rightSafeInset + 8
+    }
+
+    if (nextScrollLeft !== container.scrollLeft) {
+      container.scrollTo({
+        left: nextScrollLeft,
+        behavior: "smooth",
+      })
+    }
   }
 
   useEffect(() => {
@@ -69,70 +96,87 @@ export default function TabBar({
   }, [openTabs])
 
   useEffect(() => {
-    const tabEl = tabRefs.current[activeTabId]
-    if (!tabEl) return
-
-    tabEl.scrollIntoView({
-      behavior: "smooth",
-      inline: "nearest",
-      block: "nearest",
-    })
+    scrollActiveTabIntoSafeView()
 
     const timer = window.setTimeout(() => {
       updateScrollState()
-    }, 220)
+      scrollActiveTabIntoSafeView()
+    }, 260)
 
     return () => window.clearTimeout(timer)
-  }, [activeTab, activeTabId, openTabs])
+  }, [activeTabId, openTabs, canScrollLeft, canScrollRight])
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="relative flex items-center gap-2">
-        {canScrollLeft ? (
-          <button
-            type="button"
-            onClick={() => scrollTabsBy(-220)}
-            className={cn(
-              "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-              theme.card,
-              theme.hover
-            )}
-            aria-label="Scroll tabs left"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        ) : null}
+        <AnimatePresence>
+          {canScrollLeft ? (
+            <motion.button
+              key="left-arrow"
+              type="button"
+              onClick={() => scrollTabsBy(-220)}
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -6 }}
+              transition={{ duration: 0.16 }}
+              className={cn(
+                "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+                theme.card,
+                theme.hover
+              )}
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
 
         <div className="relative min-w-0 flex-1">
-          {canScrollLeft ? (
-            <div
-              className={cn(
-                "pointer-events-none absolute left-0 top-0 z-10 hidden h-full w-8 lg:block",
-                theme.resolved === "light"
-                  ? "bg-gradient-to-r from-white/95 to-transparent"
-                  : theme.resolved === "emerald"
-                    ? "bg-gradient-to-r from-[#041811]/95 to-transparent"
-                    : theme.resolved === "midnight"
-                      ? "bg-gradient-to-r from-[#06101f]/95 to-transparent"
-                      : "bg-gradient-to-r from-slate-950/95 to-transparent"
-              )}
-            />
-          ) : null}
+          <AnimatePresence>
+            {canScrollLeft ? (
+              <motion.div
+                key="left-fade"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16 }}
+                className={cn(
+                  "pointer-events-none absolute left-0 top-0 z-10 hidden h-full lg:block",
+                  theme.resolved === "light"
+                    ? "bg-gradient-to-r from-white/95 to-transparent"
+                    : theme.resolved === "emerald"
+                      ? "bg-gradient-to-r from-[#041811]/95 to-transparent"
+                      : theme.resolved === "midnight"
+                        ? "bg-gradient-to-r from-[#06101f]/95 to-transparent"
+                        : "bg-gradient-to-r from-slate-950/95 to-transparent"
+                )}
+                style={{ width: `${EDGE_FADE_WIDTH}px` }}
+              />
+            ) : null}
+          </AnimatePresence>
 
-          {canScrollRight ? (
-            <div
-              className={cn(
-                "pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-8 lg:block",
-                theme.resolved === "light"
-                  ? "bg-gradient-to-l from-white/95 to-transparent"
-                  : theme.resolved === "emerald"
-                    ? "bg-gradient-to-l from-[#041811]/95 to-transparent"
-                    : theme.resolved === "midnight"
-                      ? "bg-gradient-to-l from-[#06101f]/95 to-transparent"
-                      : "bg-gradient-to-l from-slate-950/95 to-transparent"
-              )}
-            />
-          ) : null}
+          <AnimatePresence>
+            {canScrollRight ? (
+              <motion.div
+                key="right-fade"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16 }}
+                className={cn(
+                  "pointer-events-none absolute right-0 top-0 z-10 hidden h-full lg:block",
+                  theme.resolved === "light"
+                    ? "bg-gradient-to-l from-white/95 to-transparent"
+                    : theme.resolved === "emerald"
+                      ? "bg-gradient-to-l from-[#041811]/95 to-transparent"
+                      : theme.resolved === "midnight"
+                        ? "bg-gradient-to-l from-[#06101f]/95 to-transparent"
+                        : "bg-gradient-to-l from-slate-950/95 to-transparent"
+                )}
+                style={{ width: `${EDGE_FADE_WIDTH}px` }}
+              />
+            ) : null}
+          </AnimatePresence>
 
           <div
             ref={scrollRef}
@@ -167,20 +211,27 @@ export default function TabBar({
           </div>
         </div>
 
-        {canScrollRight ? (
-          <button
-            type="button"
-            onClick={() => scrollTabsBy(220)}
-            className={cn(
-              "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-              theme.card,
-              theme.hover
-            )}
-            aria-label="Scroll tabs right"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        ) : null}
+        <AnimatePresence>
+          {canScrollRight ? (
+            <motion.button
+              key="right-arrow"
+              type="button"
+              onClick={() => scrollTabsBy(220)}
+              initial={{ opacity: 0, x: 6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 6 }}
+              transition={{ duration: 0.16 }}
+              className={cn(
+                "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+                theme.card,
+                theme.hover
+              )}
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
 
         <div className="relative shrink-0">
           <button
