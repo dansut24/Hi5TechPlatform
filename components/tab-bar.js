@@ -25,13 +25,10 @@ export default function TabBar({
   }, [openTabs, activeTabId])
 
   const muiTabTextColor =
-    theme.resolved === "light" ? "rgba(15,23,42,0.88)" : "rgba(255,255,255,0.9)"
+    theme.resolved === "light" ? "rgba(15,23,42,0.9)" : "rgba(255,255,255,0.9)"
 
   const muiTabMutedColor =
-    theme.resolved === "light" ? "rgba(15,23,42,0.55)" : "rgba(255,255,255,0.65)"
-
-  const muiIndicatorColor =
-    theme.resolved === "light" ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)"
+    theme.resolved === "light" ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.72)"
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
@@ -50,29 +47,20 @@ export default function TabBar({
             slotProps={{
               scrollButtons: {
                 className: cn(
-                  "rounded-xl border transition !mx-1",
+                  "rounded-xl border transition !mx-0.5 !min-w-0",
                   theme.card,
                   theme.hover
                 ),
               },
             }}
             sx={{
-              minHeight: 40,
+              minHeight: 36,
               "& .MuiTabs-flexContainer": {
                 gap: "8px",
+                alignItems: "center",
               },
               "& .MuiTabs-indicator": {
                 display: "none",
-              },
-              "& .MuiTabs-scrollButtons": {
-                width: 40,
-                height: 40,
-                flexShrink: 0,
-                opacity: 1,
-                color: muiTabMutedColor,
-              },
-              "& .Mui-disabled": {
-                opacity: 0.35,
               },
               "& .MuiTabs-scroller": {
                 overflowY: "hidden !important",
@@ -82,6 +70,22 @@ export default function TabBar({
               },
               "& .MuiTabs-scrollableX::-webkit-scrollbar": {
                 display: "none",
+              },
+              "& .MuiTabs-list": {
+                paddingLeft: 0,
+                marginLeft: 0,
+              },
+              "& .MuiTabs-scrollButtons": {
+                width: 36,
+                height: 36,
+                minWidth: 36,
+                borderRadius: "12px",
+                flexShrink: 0,
+                opacity: 1,
+                color: muiTabMutedColor,
+              },
+              "& .MuiTabs-scrollButtons.Mui-disabled": {
+                opacity: 0.28,
               },
             }}
           >
@@ -93,29 +97,31 @@ export default function TabBar({
                   key={tab.id}
                   disableRipple
                   label={
-                    <span className="flex items-center gap-2">
-                      <span className="max-w-[160px] truncate">{tab.label}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{tab.label}</span>
                       {tab.closable ? (
                         <span
                           onClick={(e) => {
                             e.stopPropagation()
                             onClose(tab.id)
                           }}
-                          className="rounded-md p-0.5 opacity-70 transition hover:bg-black/10 hover:opacity-100"
+                          className="flex h-4 w-4 items-center justify-center rounded-sm opacity-70 transition hover:bg-black/10 hover:opacity-100"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-3 w-3" />
                         </span>
                       ) : null}
                     </span>
                   }
                   sx={{
-                    minHeight: 40,
-                    height: 40,
-                    padding: 0,
+                    minHeight: 36,
+                    height: 36,
                     minWidth: 0,
+                    padding: 0,
+                    px: 1.75,
                     borderRadius: "12px",
                     textTransform: "none",
-                    justifyContent: "flex-start",
+                    alignItems: "center",
+                    justifyContent: "center",
                     color: selected ? muiTabTextColor : muiTabMutedColor,
                     border: "1px solid",
                     borderColor:
@@ -130,6 +136,7 @@ export default function TabBar({
                         ? "rgba(255,255,255,0.55)"
                         : "rgba(255,255,255,0.05)",
                     backdropFilter: "blur(16px)",
+                    transition: "all 0.18s ease",
                     "&:hover": {
                       backgroundColor:
                         theme.resolved === "light"
@@ -137,7 +144,13 @@ export default function TabBar({
                           : "rgba(255,255,255,0.08)",
                     },
                     "& .MuiTab-wrapper": {
-                      alignItems: "center",
+                      width: "100%",
+                    },
+                    "& .MuiTab-iconWrapper": {
+                      marginRight: 0,
+                    },
+                    "& .MuiTouchRipple-root": {
+                      display: "none",
                     },
                   }}
                 />
@@ -150,7 +163,7 @@ export default function TabBar({
           <button
             onClick={() => setPickerOpen((v) => !v)}
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-xl border transition",
+              "flex h-9 w-9 items-center justify-center rounded-xl border transition",
               theme.card,
               theme.hover
             )}
@@ -167,7 +180,7 @@ export default function TabBar({
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.16 }}
                 className={cn(
-                  "absolute right-0 top-12 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
+                  "absolute right-0 top-11 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
                   theme.panel
                 )}
               >
