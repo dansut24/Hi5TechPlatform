@@ -16,9 +16,9 @@ function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
 
   return (
     <div className="min-w-0">
-      <div className="flex min-w-0 items-center gap-2 overflow-hidden text-sm">
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[13px] sm:text-sm">
         {breadcrumbs.map((item, index) => (
-          <div key={`${item}-${index}`} className="flex min-w-0 items-center gap-2">
+          <div key={`${item}-${index}`} className="flex min-w-0 items-center gap-1.5">
             {index > 0 ? <span className={cn("shrink-0 opacity-50", theme.muted2)}>/</span> : null}
             <span
               className={cn(
@@ -43,13 +43,13 @@ function HeaderWorkspaceSwitch({ currentModuleTitle, navItems, activeNav, onSwit
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={cn("flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition", theme.card, theme.hover)}
+        className={cn("flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left transition lg:px-3 lg:py-2", theme.card, theme.hover)}
       >
         <div className="min-w-0">
-          <div className={cn("text-[10px] uppercase tracking-[0.16em]", theme.muted2)}>{currentModuleTitle}</div>
-          <div className="truncate text-sm font-medium">{activeItem?.label || "Section"}</div>
+          <div className={cn("text-[9px] uppercase tracking-[0.16em]", theme.muted2)}>{currentModuleTitle}</div>
+          <div className="truncate text-xs font-medium lg:text-sm">{activeItem?.label || "Section"}</div>
         </div>
-        <ChevronDown className={cn("h-4 w-4 transition", open ? "rotate-180" : "rotate-0", theme.muted2)} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition lg:h-4 lg:w-4", open ? "rotate-180" : "rotate-0", theme.muted2)} />
       </button>
 
       <AnimatePresence>
@@ -59,7 +59,7 @@ function HeaderWorkspaceSwitch({ currentModuleTitle, navItems, activeNav, onSwit
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.16 }}
-            className={cn("absolute right-0 top-12 z-[100] min-w-[280px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
+            className={cn("absolute right-0 top-11 z-[100] min-w-[260px] rounded-3xl border p-3 shadow-2xl shadow-black/40 lg:top-12 lg:min-w-[280px]", theme.panel)}
           >
             <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>Quick switch</div>
             <div className="space-y-1">
@@ -110,12 +110,12 @@ function NotificationBell({ theme, mobile = false }) {
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "relative flex items-center justify-center rounded-xl border transition",
-          mobile ? "h-10 w-10" : "h-9 w-9",
+          mobile ? "h-9 w-9 lg:h-10 lg:w-10" : "h-8 w-8 lg:h-9 lg:w-9",
           theme.card,
           theme.hover
         )}
       >
-        <Bell className={mobile ? "h-4.5 w-4.5" : "h-4 w-4"} />
+        <Bell className={mobile ? "h-4 w-4 lg:h-4.5 lg:w-4.5" : "h-3.5 w-3.5 lg:h-4 lg:w-4"} />
         <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400" />
       </button>
 
@@ -128,8 +128,8 @@ function NotificationBell({ theme, mobile = false }) {
             transition={{ duration: 0.16 }}
             className={cn(
               mobile
-                ? "absolute bottom-12 left-1/2 z-[100] w-[320px] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-3xl border p-3 shadow-2xl shadow-black/40"
-                : "absolute right-0 top-12 z-[100] w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
+                ? "absolute bottom-11 left-1/2 z-[100] w-[300px] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-3xl border p-3 shadow-2xl shadow-black/40"
+                : "absolute right-0 top-11 z-[100] w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40 lg:top-12",
               theme.panel
             )}
           >
@@ -161,9 +161,9 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={cn("flex items-center gap-2 rounded-xl border px-2 py-1.5 transition", theme.card, theme.hover)}
+        className={cn("flex items-center gap-2 rounded-xl border px-2 py-1 transition lg:py-1.5", theme.card, theme.hover)}
       >
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold", theme.card)}>
+        <div className={cn("flex h-7 w-7 items-center justify-center rounded-xl border text-[11px] font-semibold lg:h-8 lg:w-8 lg:text-xs", theme.card)}>
           {user.initials}
         </div>
       </button>
@@ -175,7 +175,7 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.16 }}
-            className={cn("absolute right-0 top-12 z-[100] w-[260px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
+            className={cn("absolute right-0 top-11 z-[100] w-[260px] rounded-3xl border p-3 shadow-2xl shadow-black/40 lg:top-12", theme.panel)}
           >
             <div className={cn("mb-3 flex items-center gap-3 rounded-2xl border p-3", theme.subCard, theme.line)}>
               <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-semibold", theme.card)}>
@@ -188,25 +188,17 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
             </div>
 
             <div className="space-y-2">
-              <button
-                onClick={onGoModules}
-                className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}
-              >
+              <button onClick={onGoModules} className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}>
                 <span>Module selector</span>
                 <ChevronRight className={cn("h-4 w-4", theme.muted2)} />
               </button>
 
-              <button
-                className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}
-              >
+              <button className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}>
                 <span>Profile settings</span>
                 <ChevronRight className={cn("h-4 w-4", theme.muted2)} />
               </button>
 
-              <button
-                onClick={onLogout}
-                className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-rose-300 transition hover:bg-rose-500/10"
-              >
+              <button onClick={onLogout} className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-rose-300 transition hover:bg-rose-500/10">
                 <span>Log out</span>
                 <ChevronRight className="h-4 w-4 text-rose-300/70" />
               </button>
@@ -237,10 +229,10 @@ export default function HeaderBar({
       className={cn("relative z-50 border-b backdrop-blur-xl", theme.header)}
       style={{ height: "var(--header-height)" }}
     >
-      <div className="flex h-full items-center justify-between gap-3 px-4 py-3 lg:px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border", theme.card)}>
-            <Sparkles className="h-4 w-4" />
+      <div className="flex h-full items-center justify-between gap-3 px-4 py-2 lg:px-6 lg:py-3">
+        <div className="flex min-w-0 items-center gap-3 lg:gap-4">
+          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9", theme.card)}>
+            <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
           </div>
 
           <div className="hidden min-w-0 md:block">
