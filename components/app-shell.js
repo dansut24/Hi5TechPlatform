@@ -364,7 +364,7 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
             </main>
           </div>
 
-          <FloatingMenu
+         <FloatingMenu
   navItems={navItems}
   activeNav={activeNav}
   onSwitchPage={switchPage}
