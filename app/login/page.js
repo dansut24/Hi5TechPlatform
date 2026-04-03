@@ -1,5 +1,7 @@
-import AppShell from "@/components/app-shell"
+import LoginPage from "@/components/auth/login-page"
+import { themeMap } from "@/lib/themes"
 
-export default function LoginPage() {
-  return <AppShell initialView="login" />
+export default function LoginRoutePage() {
+  const theme = { ...themeMap.midnight, resolved: "midnight" }
+  return <LoginPage theme={theme} />
 }
