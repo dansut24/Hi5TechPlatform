@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   signInWithGitHub,
@@ -14,12 +14,18 @@ import { GitHubMark, GoogleMark, MicrosoftMark, SSOMark } from "@/components/sha
 export default function LoginPage({ theme }) {
   const searchParams = useSearchParams()
   const next = searchParams.get("next") || "/select-module"
+  const modeFromQuery = searchParams.get("mode")
+  const trial = searchParams.get("trial") === "1"
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState("")
-  const [authMode, setAuthMode] = useState("signin")
+  const [authMode, setAuthMode] = useState(modeFromQuery === "signup" ? "signup" : "signin")
+
+  useEffect(() => {
+    if (modeFromQuery === "signup") setAuthMode("signup")
+  }, [modeFromQuery])
 
   const redirectTo =
     typeof window !== "undefined"
@@ -96,13 +102,17 @@ export default function LoginPage({ theme }) {
 
                 <div className="mt-12 max-w-xl">
                   <div className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${theme.card} ${theme.muted}`}>
-                    Unified operations
+                    {trial ? "Free trial signup" : "Unified operations"}
                   </div>
                   <h1 className="mt-4 text-4xl font-semibold tracking-tight lg:text-5xl">
-                    Run service, support, devices, and self-service from one platform.
+                    {trial
+                      ? "Start your tenant workspace and launch your free trial."
+                      : "Run service, support, devices, and self-service from one platform."}
                   </h1>
                   <p className={`mt-4 text-base lg:text-lg ${theme.muted}`}>
-                    A modern multi-module workspace for ITSM, RMM, asset management, automation, analytics, and end-user support.
+                    {trial
+                      ? "Create your account, provision a workspace, and start with a tenant-ready setup."
+                      : "A modern multi-module workspace for ITSM, RMM, asset management, automation, analytics, and end-user support."}
                   </p>
                 </div>
               </div>
@@ -168,7 +178,9 @@ export default function LoginPage({ theme }) {
                     : "Creating account..."
                   : authMode === "signin"
                     ? "Sign in to workspace"
-                    : "Create account"}
+                    : trial
+                      ? "Create account and start trial"
+                      : "Create account"}
               </button>
 
               <div className={`relative py-2 ${theme.muted}`}>
@@ -187,34 +199,22 @@ export default function LoginPage({ theme }) {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  onClick={() => handleOAuthLogin("microsoft")}
-                  className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
-                >
+                <button onClick={() => handleOAuthLogin("microsoft")} className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}>
                   <MicrosoftMark className="h-5 w-5" />
                   <span>Microsoft 365</span>
                 </button>
 
-                <button
-                  onClick={() => handleOAuthLogin("google")}
-                  className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
-                >
+                <button onClick={() => handleOAuthLogin("google")} className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}>
                   <GoogleMark className="h-5 w-5" />
                   <span>Google</span>
                 </button>
 
-                <button
-                  onClick={() => handleOAuthLogin("github")}
-                  className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
-                >
+                <button onClick={() => handleOAuthLogin("github")} className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}>
                   <GitHubMark className="h-5 w-5" />
                   <span>GitHub</span>
                 </button>
 
-                <button
-                  type="button"
-                  className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}
-                >
+                <button type="button" className={`flex h-12 items-center justify-center gap-3 rounded-2xl border px-4 text-sm transition ${theme.card} ${theme.hover}`}>
                   <SSOMark className="h-5 w-5" />
                   <span>SAML SSO</span>
                 </button>
