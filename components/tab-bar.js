@@ -46,7 +46,7 @@ export default function TabBar({
   }, [activeIndex, openTabs.length])
 
   return (
-    <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
+    <div className={cn("sticky top-0 z-30 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1" ref={tabsRootRef}>
           <Tabs
@@ -97,11 +97,11 @@ export default function TabBar({
                 flexShrink: 0,
                 opacity: 1,
                 color: muiTabMutedColor,
-                transition: "opacity 220ms ease, transform 220ms ease, background-color 180ms ease",
+                transition: "opacity 300ms ease, transform 300ms ease, background-color 180ms ease",
               },
               "& .MuiTabs-scrollButtons.Mui-disabled": {
                 opacity: 0,
-                transform: "scale(0.92)",
+                transform: "scale(0.9)",
                 pointerEvents: "none",
               },
               "& .MuiTabs-scrollButtons:not(.Mui-disabled)": {
@@ -200,7 +200,7 @@ export default function TabBar({
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.16 }}
                 className={cn(
-                  "absolute right-0 top-11 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
+                  "absolute right-0 top-11 z-[100] w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
                   theme.panel
                 )}
               >
