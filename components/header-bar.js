@@ -21,6 +21,7 @@ function HeaderWorkspaceSwitch({ currentModuleTitle, navItems, activeNav, onSwit
         </div>
         <ChevronRight className={cn("h-4 w-4 transition", open ? "rotate-90" : "rotate-0", theme.muted2)} />
       </button>
+
       <AnimatePresence>
         {open ? (
           <motion.div
@@ -35,6 +36,7 @@ function HeaderWorkspaceSwitch({ currentModuleTitle, navItems, activeNav, onSwit
               {navItems.slice(0, 6).map((item) => {
                 const Icon = item.icon
                 const selected = item.id === activeNav
+
                 return (
                   <button
                     key={item.id}
@@ -77,6 +79,7 @@ function NotificationBell({ theme }) {
         <Bell className="h-4 w-4" />
         <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400" />
       </button>
+
       <AnimatePresence>
         {open ? (
           <motion.div
@@ -112,9 +115,15 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((v) => !v)} className={cn("flex items-center gap-2 rounded-xl border px-2 py-1.5 transition", theme.card, theme.hover)}>
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold", theme.card)}>{user.initials}</div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={cn("flex items-center gap-2 rounded-xl border px-2 py-1.5 transition", theme.card, theme.hover)}
+      >
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold", theme.card)}>
+          {user.initials}
+        </div>
       </button>
+
       <AnimatePresence>
         {open ? (
           <motion.div
@@ -125,22 +134,35 @@ function ProfileMenu({ user, onGoModules, onLogout, theme }) {
             className={cn("absolute right-0 top-12 z-40 w-[260px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
           >
             <div className={cn("mb-3 flex items-center gap-3 rounded-2xl border p-3", theme.subCard, theme.line)}>
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-semibold", theme.card)}>{user.initials}</div>
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-semibold", theme.card)}>
+                {user.initials}
+              </div>
               <div>
                 <div className="text-sm font-medium">{user.name}</div>
                 <div className={cn("text-xs", theme.muted)}>{user.role}</div>
               </div>
             </div>
+
             <div className="space-y-2">
-              <button onClick={onGoModules} className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}>
+              <button
+                onClick={onGoModules}
+                className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}
+              >
                 <span>Module selector</span>
                 <ChevronRight className={cn("h-4 w-4", theme.muted2)} />
               </button>
-              <button className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}>
+
+              <button
+                className={cn("flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition", theme.hover)}
+              >
                 <span>Profile settings</span>
                 <ChevronRight className={cn("h-4 w-4", theme.muted2)} />
               </button>
-              <button onClick={onLogout} className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-rose-300 transition hover:bg-rose-500/10">
+
+              <button
+                onClick={onLogout}
+                className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-rose-300 transition hover:bg-rose-500/10"
+              >
                 <span>Log out</span>
                 <ChevronRight className="h-4 w-4 text-rose-300/70" />
               </button>
@@ -165,7 +187,10 @@ export default function HeaderBar({
   setNavMode,
 }) {
   return (
-    <div className={cn("relative z-30 border-b backdrop-blur-xl", theme.header)} style={{ height: "var(--header-height)" }}>
+    <div
+      className={cn("relative z-30 border-b backdrop-blur-xl", theme.header)}
+      style={{ height: "var(--header-height)" }}
+    >
       <div className="flex h-full items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-9 w-9 items-center justify-center rounded-2xl border", theme.card)}>
@@ -176,6 +201,7 @@ export default function HeaderBar({
             <div className={cn("text-[11px]", theme.muted2)}>Service Platform</div>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setNavMode((prev) => (prev === "floating" ? "sidebar" : "floating"))}
@@ -184,7 +210,15 @@ export default function HeaderBar({
             <PanelLeft className="h-4 w-4" />
             <span>{navMode === "floating" ? "Sidebar" : "Floating"}</span>
           </button>
-          <HeaderWorkspaceSwitch currentModuleTitle={currentModuleTitle} navItems={navItems} activeNav={activeNav} onSwitch={onSwitchPage} theme={theme} />
+
+          <HeaderWorkspaceSwitch
+            currentModuleTitle={currentModuleTitle}
+            navItems={navItems}
+            activeNav={activeNav}
+            onSwitch={onSwitchPage}
+            theme={theme}
+          />
+
           <NotificationBell theme={theme} />
           <ProfileMenu user={user} onGoModules={onGoModules} onLogout={onLogout} theme={theme} />
         </div>
