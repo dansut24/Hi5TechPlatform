@@ -41,13 +41,12 @@ export default function TabBar({
               if (tab) onActivate(tab.id)
             }}
             variant="scrollable"
-            scrollButtons
-            allowScrollButtonsMobile
+            scrollButtons="auto"
             aria-label={`${currentModuleTitle} tabs`}
             slotProps={{
               scrollButtons: {
                 className: cn(
-                  "rounded-xl border transition !mx-0.5 !min-w-0",
+                  "rounded-xl border transition !mx-0.5 !min-w-0 duration-300 ease-out",
                   theme.card,
                   theme.hover
                 ),
@@ -83,9 +82,15 @@ export default function TabBar({
                 flexShrink: 0,
                 opacity: 1,
                 color: muiTabMutedColor,
+                transition: "opacity 220ms ease, transform 220ms ease, background-color 180ms ease",
               },
               "& .MuiTabs-scrollButtons.Mui-disabled": {
-                opacity: 0.28,
+                opacity: 0,
+                transform: "scale(0.92)",
+                pointerEvents: "none",
+              },
+              "& .MuiTabs-scrollButtons:not(.Mui-disabled)": {
+                transform: "scale(1)",
               },
             }}
           >
