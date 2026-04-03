@@ -71,7 +71,7 @@ export default function TabBar({
 
     tabEl.scrollIntoView({
       behavior: "smooth",
-      inline: "center",
+      inline: "nearest",
       block: "nearest",
     })
   }, [activeTabId, openTabs])
@@ -79,10 +79,19 @@ export default function TabBar({
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => scrollTabsBy(-220)}
-          disabled={!canScrollLeft}
+        {canScrollRight && (
+  <button
+    type="button"
+    onClick={() => scrollTabsBy(220)}
+    className={cn(
+      "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+      theme.card,
+      theme.hover
+    )}
+  >
+    <ChevronRight className="h-4 w-4" />
+  </button>
+)}
           className={cn(
             "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
             theme.card,
@@ -126,18 +135,19 @@ export default function TabBar({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => scrollTabsBy(220)}
-          disabled={!canScrollRight}
-          className={cn(
-            "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
-            theme.card,
-            theme.hover,
-            !canScrollRight ? "pointer-events-none opacity-35" : ""
-          )}
-          aria-label="Scroll tabs right"
-        >
+        {canScrollLeft && (
+  <button
+    type="button"
+    onClick={() => scrollTabsBy(-220)}
+    className={cn(
+      "hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition lg:flex",
+      theme.card,
+      theme.hover
+    )}
+  >
+    <ChevronLeft className="h-4 w-4" />
+  </button>
+)}
           <ChevronRight className="h-4 w-4" />
         </button>
 
