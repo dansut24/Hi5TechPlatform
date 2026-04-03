@@ -236,7 +236,7 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
   const desktopContentOffset = navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
 
   return (
-    <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 ${theme.app}`}>
+    <div className={`min-h-screen w-full transition-colors duration-300 ${theme.app}`}>
       <GlobalSearchModal
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
