@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase/client"
 
 function parseHashParams() {
@@ -14,11 +14,14 @@ function parseHashParams() {
 
 export default function TenantSetPasswordPage({ theme, slug }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState("")
+
+  const signupId = searchParams.get("signup")
 
   useEffect(() => {
     let mounted = true
@@ -33,7 +36,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
         const refreshToken = hashParams.get("refresh_token")
         const type = hashParams.get("type")
 
-        if (type === "invite" && accessToken && refreshToken) {
+        if ((type === "invite" || type === "recovery") && accessToken && refreshToken) {
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -72,6 +75,11 @@ export default function TenantSetPasswordPage({ theme, slug }) {
     try {
       setError("")
 
+      if (!signupId) {
+        setError("Missing setup reference")
+        return
+      }
+
       if (!password || password.length < 8) {
         setError("Password must be at least 8 characters")
         return
@@ -92,6 +100,20 @@ export default function TenantSetPasswordPage({ theme, slug }) {
       })
 
       if (updateError) throw updateError
+
+      const finalizeRes = await fetch("/api/trial-signups/finalize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ signupId }),
+      })
+
+      const finalizeJson = await finalizeRes.json()
+
+      if (!finalizeRes.ok) {
+        throw new Error(finalizeJson.error || "Failed to finalize workspace")
+      }
 
       await supabase.auth.signOut()
       router.replace(`/tenant/${slug}/login?ready=1`)
