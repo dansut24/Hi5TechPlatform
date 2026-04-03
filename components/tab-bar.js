@@ -46,8 +46,8 @@ export default function TabBar({
   }, [activeIndex, openTabs.length])
 
   return (
-    <div className={cn("sticky top-0 z-30 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
-      <div className="flex items-center gap-2">
+    <div className={cn("sticky top-0 z-30 border-b px-3 py-1.5 backdrop-blur-xl lg:px-6 lg:py-2", theme.header)}>
+      <div className="flex items-center gap-1.5 lg:gap-2">
         <div className="min-w-0 flex-1" ref={tabsRootRef}>
           <Tabs
             value={activeIndex}
@@ -68,10 +68,18 @@ export default function TabBar({
               },
             }}
             sx={{
-              minHeight: 36,
+              minHeight: 32,
+              "@media (min-width:1024px)": {
+                minHeight: 36,
+              },
               "& .MuiTabs-flexContainer": {
-                gap: "8px",
+                gap: "6px",
                 alignItems: "center",
+              },
+              "@media (min-width:1024px)": {
+                "& .MuiTabs-flexContainer": {
+                  gap: "8px",
+                },
               },
               "& .MuiTabs-indicator": {
                 display: "none",
@@ -90,14 +98,22 @@ export default function TabBar({
                 marginLeft: 0,
               },
               "& .MuiTabs-scrollButtons": {
-                width: 36,
-                height: 36,
-                minWidth: 36,
-                borderRadius: "12px",
+                width: 32,
+                height: 32,
+                minWidth: 32,
+                borderRadius: "10px",
                 flexShrink: 0,
                 opacity: 1,
                 color: muiTabMutedColor,
                 transition: "opacity 300ms ease, transform 300ms ease, background-color 180ms ease",
+              },
+              "@media (min-width:1024px)": {
+                "& .MuiTabs-scrollButtons": {
+                  width: 36,
+                  height: 36,
+                  minWidth: 36,
+                  borderRadius: "12px",
+                },
               },
               "& .MuiTabs-scrollButtons.Mui-disabled": {
                 opacity: 0,
@@ -117,7 +133,7 @@ export default function TabBar({
                   key={tab.id}
                   disableRipple
                   label={
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 lg:gap-2">
                       <span className="truncate">{tab.label}</span>
                       {tab.closable ? (
                         <span
@@ -125,20 +141,21 @@ export default function TabBar({
                             e.stopPropagation()
                             onClose(tab.id)
                           }}
-                          className="flex h-4 w-4 items-center justify-center rounded-sm opacity-70 transition hover:bg-black/10 hover:opacity-100"
+                          className="flex h-3.5 w-3.5 items-center justify-center rounded-sm opacity-70 transition hover:bg-black/10 hover:opacity-100 lg:h-4 lg:w-4"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-2.5 w-2.5 lg:h-3 lg:w-3" />
                         </span>
                       ) : null}
                     </span>
                   }
                   sx={{
-                    minHeight: 36,
-                    height: 36,
+                    minHeight: 32,
+                    height: 32,
                     minWidth: 0,
                     padding: 0,
-                    px: 1.75,
-                    borderRadius: "12px",
+                    px: 1.25,
+                    borderRadius: "10px",
+                    fontSize: "0.8125rem",
                     textTransform: "none",
                     alignItems: "center",
                     justifyContent: "center",
@@ -157,6 +174,13 @@ export default function TabBar({
                         : "rgba(255,255,255,0.05)",
                     backdropFilter: "blur(16px)",
                     transition: "all 0.18s ease",
+                    "@media (min-width:1024px)": {
+                      minHeight: 36,
+                      height: 36,
+                      px: 1.75,
+                      borderRadius: "12px",
+                      fontSize: "0.875rem",
+                    },
                     "&:hover": {
                       backgroundColor:
                         theme.resolved === "light"
@@ -183,13 +207,13 @@ export default function TabBar({
           <button
             onClick={() => setPickerOpen((v) => !v)}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl border transition",
+              "flex h-8 w-8 items-center justify-center rounded-xl border transition lg:h-9 lg:w-9",
               theme.card,
               theme.hover
             )}
             title="Open new tab"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
           </button>
 
           <AnimatePresence>
@@ -200,7 +224,7 @@ export default function TabBar({
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.16 }}
                 className={cn(
-                  "absolute right-0 top-11 z-[100] w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40",
+                  "absolute right-0 top-10 z-[100] w-[300px] rounded-3xl border p-3 shadow-2xl shadow-black/40 lg:top-11 lg:w-[320px]",
                   theme.panel
                 )}
               >
