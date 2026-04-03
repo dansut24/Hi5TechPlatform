@@ -1,12 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase/client"
+
+function parseHashParams() {
+  if (typeof window === "undefined") return new URLSearchParams()
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash
+  return new URLSearchParams(hash)
+}
 
 export default function TenantSetPasswordPage({ theme, slug }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -21,10 +28,22 @@ export default function TenantSetPasswordPage({ theme, slug }) {
         const supabase = getSupabaseClient()
         if (!supabase) throw new Error("Supabase client not available")
 
-        const code = searchParams.get("code")
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-          if (exchangeError) throw exchangeError
+        const hashParams = parseHashParams()
+        const accessToken = hashParams.get("access_token")
+        const refreshToken = hashParams.get("refresh_token")
+        const type = hashParams.get("type")
+
+        if (type === "invite" && accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (sessionError) throw sessionError
+
+          if (typeof window !== "undefined" && window.location.hash) {
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
+          }
         }
 
         const { data, error: userError } = await supabase.auth.getUser()
@@ -47,7 +66,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
     return () => {
       mounted = false
     }
-  }, [searchParams])
+  }, [])
 
   const submit = async () => {
     try {
