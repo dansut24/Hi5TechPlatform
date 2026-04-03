@@ -8,7 +8,7 @@ export default async function TenantHomePage({ params }) {
   const { slug } = await params
 
   if (!context.user) {
-    redirect("/login")
+    redirect(`/tenant/${slug}/login`)
   }
 
   const tenant = context.tenants.find((t) => t.slug === slug)
@@ -23,7 +23,7 @@ export default async function TenantHomePage({ params }) {
         <div className={`rounded-[28px] border p-8 shadow-2xl backdrop-blur-2xl ${theme.card}`}>
           <div className="text-3xl font-semibold">{tenant.name}</div>
           <div className={`mt-2 text-sm ${theme.muted}`}>
-            Tenant-aware routing is now working. Next we’ll wire module access and send users into the correct module shell.
+            Tenant onboarding is complete and your authenticated session is active.
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-4">
