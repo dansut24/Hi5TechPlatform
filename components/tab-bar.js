@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
-const DESKTOP_ARROW_SPACE = 56
+const DESKTOP_RIGHT_ARROW_SPACE = 56
 const EDGE_FADE_WIDTH = 36
 
 export default function TabBar({
@@ -44,26 +44,32 @@ export default function TabBar({
     })
   }
 
-  const scrollActiveTabIntoSafeView = () => {
+  const scrollActiveTabIntoView = () => {
     const container = scrollRef.current
     const tabEl = tabRefs.current[activeTabId]
     if (!container || !tabEl) return
 
     const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024
-    const leftSafeInset = isDesktop && canScrollLeft ? DESKTOP_ARROW_SPACE : 0
-    const rightSafeInset = isDesktop && canScrollRight ? DESKTOP_ARROW_SPACE : 0
 
     const tabLeft = tabEl.offsetLeft
     const tabRight = tabLeft + tabEl.offsetWidth
-    const visibleLeft = container.scrollLeft + leftSafeInset
-    const visibleRight = container.scrollLeft + container.clientWidth - rightSafeInset
+
+    const visibleLeft = container.scrollLeft
+    const visibleRight =
+      container.scrollLeft +
+      container.clientWidth -
+      (isDesktop && canScrollRight ? DESKTOP_RIGHT_ARROW_SPACE : 0)
 
     let nextScrollLeft = container.scrollLeft
 
     if (tabLeft < visibleLeft) {
-      nextScrollLeft = Math.max(0, tabLeft - leftSafeInset - 8)
+      nextScrollLeft = Math.max(0, tabLeft - 8)
     } else if (tabRight > visibleRight) {
-      nextScrollLeft = tabRight - container.clientWidth + rightSafeInset + 8
+      nextScrollLeft =
+        tabRight -
+        container.clientWidth +
+        (isDesktop ? DESKTOP_RIGHT_ARROW_SPACE : 0) +
+        8
     }
 
     if (nextScrollLeft !== container.scrollLeft) {
@@ -96,15 +102,14 @@ export default function TabBar({
   }, [openTabs])
 
   useEffect(() => {
-    scrollActiveTabIntoSafeView()
+    scrollActiveTabIntoView()
 
     const timer = window.setTimeout(() => {
       updateScrollState()
-      scrollActiveTabIntoSafeView()
     }, 260)
 
     return () => window.clearTimeout(timer)
-  }, [activeTabId, openTabs, canScrollLeft, canScrollRight])
+  }, [activeTabId, openTabs, canScrollRight])
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
