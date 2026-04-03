@@ -26,7 +26,7 @@ export default async function TenantHomePage({ params }) {
             Tenant-aware routing is now working. Next we’ll wire module access and send users into the correct module shell.
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
             <div className={`rounded-[24px] border p-5 ${theme.card}`}>
               <div className="text-sm font-medium">Tenant</div>
               <div className="mt-2 text-lg font-semibold">{tenant.slug}</div>
@@ -38,6 +38,12 @@ export default async function TenantHomePage({ params }) {
             <div className={`rounded-[24px] border p-5 ${theme.card}`}>
               <div className="text-sm font-medium">Plan</div>
               <div className="mt-2 text-lg font-semibold">{tenant.plan}</div>
+            </div>
+            <div className={`rounded-[24px] border p-5 ${theme.card}`}>
+              <div className="text-sm font-medium">Trial ends</div>
+              <div className="mt-2 text-lg font-semibold">
+                {tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString() : "—"}
+              </div>
             </div>
           </div>
         </div>
