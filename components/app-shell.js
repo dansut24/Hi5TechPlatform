@@ -211,7 +211,7 @@ window.location.href = "/select-module"
       if (result?.user && !result?.session) {
         setAuthError("Account created. Check your email to confirm your address before signing in.")
       } else {
-        window.location.href = "/select-module")
+        window.location.href = "/select-module"
       }
     } catch (error) {
       setAuthError(error.message || "Unable to continue")
