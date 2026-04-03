@@ -9,7 +9,6 @@ import {
   Search,
   Sparkles,
   UserCircle2,
-  Bell,
   LayoutDashboard,
   Settings,
   X,
@@ -106,6 +105,7 @@ export default function FloatingMenu({
   setCustomTheme,
   theme,
   navMode,
+  user,
 }) {
   return (
     <>
@@ -217,6 +217,20 @@ export default function FloatingMenu({
                   })}
                 </div>
               </div>
+
+              {user ? (
+                <div className={cn("mt-3 border-t px-2 pt-3", theme.line)}>
+                  <div className={cn("flex items-center gap-3 rounded-[22px] border p-4", theme.subCard, theme.line)}>
+                    <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold", theme.card)}>
+                      {user.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{user.name}</div>
+                      <div className={cn("truncate text-xs", theme.muted)}>{user.role}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className={cn("mt-3 space-y-2 border-t px-2 pt-3", theme.line)}>
                 <button
