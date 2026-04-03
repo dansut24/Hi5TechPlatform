@@ -59,9 +59,9 @@ export default function TabBar({
     scheduleScrollStateRefresh()
   }
 
-  const scrollActiveTabIntoView = () => {
+  const scrollTabIdIntoView = (tabId) => {
     const container = scrollRef.current
-    const tabEl = tabRefs.current[activeTabId]
+    const tabEl = tabRefs.current[tabId]
     if (!container || !tabEl) return
 
     if (!isDesktop()) {
@@ -78,7 +78,10 @@ export default function TabBar({
     const tabRight = tabLeft + tabEl.offsetWidth
 
     const visibleLeft = container.scrollLeft
-    const visibleRight = container.scrollLeft + container.clientWidth - (canScrollRight ? DESKTOP_RIGHT_ARROW_SPACE : 0)
+    const visibleRight =
+      container.scrollLeft +
+      container.clientWidth -
+      (canScrollRight ? DESKTOP_RIGHT_ARROW_SPACE : 0)
 
     let nextScrollLeft = container.scrollLeft
 
@@ -99,6 +102,14 @@ export default function TabBar({
     }
 
     scheduleScrollStateRefresh()
+  }
+
+  const handleTabClick = (tabId) => {
+    onActivate(tabId)
+
+    requestAnimationFrame(() => {
+      scrollTabIdIntoView(tabId)
+    })
   }
 
   useEffect(() => {
@@ -130,7 +141,7 @@ export default function TabBar({
   }, [openTabs])
 
   useEffect(() => {
-    scrollActiveTabIntoView()
+    scrollTabIdIntoView(activeTabId)
   }, [activeTabId, openTabs])
 
   return (
@@ -215,7 +226,7 @@ export default function TabBar({
                 ref={(el) => {
                   if (el) tabRefs.current[tab.id] = el
                 }}
-                onClick={() => onActivate(tab.id)}
+                onClick={() => handleTabClick(tab.id)}
                 className={cn(
                   "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
                   tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
