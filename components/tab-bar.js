@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Plus, X } from "lucide-react"
 import Tabs from "@mui/material/Tabs"
@@ -18,6 +18,7 @@ export default function TabBar({
   theme,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const tabsRootRef = useRef(null)
 
   const activeIndex = useMemo(() => {
     const index = openTabs.findIndex((tab) => tab.id === activeTabId)
@@ -30,10 +31,24 @@ export default function TabBar({
   const muiTabMutedColor =
     theme.resolved === "light" ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.72)"
 
+  useEffect(() => {
+    const root = tabsRootRef.current
+    if (!root) return
+
+    const selectedTab = root.querySelector('[role="tab"][aria-selected="true"]')
+    if (!(selectedTab instanceof HTMLElement)) return
+
+    selectedTab.scrollIntoView({
+      behavior: "smooth",
+      inline: "nearest",
+      block: "nearest",
+    })
+  }, [activeIndex, openTabs.length])
+
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" ref={tabsRootRef}>
           <Tabs
             value={activeIndex}
             onChange={(_, newValue) => {
