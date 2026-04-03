@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   BookOpen,
@@ -107,47 +108,99 @@ export default function FloatingMenu({
   navMode,
   user,
 }) {
+  const [isKeyboardLikeOpen, setIsKeyboardLikeOpen] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const getViewportHeight = () =>
+      window.visualViewport?.height || window.innerHeight
+
+    let initialHeight = getViewportHeight()
+
+    const handleViewportChange = () => {
+      const currentHeight = getViewportHeight()
+      const delta = initialHeight - currentHeight
+      setIsKeyboardLikeOpen(delta > 140)
+    }
+
+    const handleResize = () => {
+      const active = document.activeElement
+      const isTextInput =
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.getAttribute?.("contenteditable") === "true")
+
+      if (!isTextInput) {
+        initialHeight = getViewportHeight()
+        setIsKeyboardLikeOpen(false)
+      }
+
+      handleViewportChange()
+    }
+
+    window.addEventListener("resize", handleResize)
+    window.visualViewport?.addEventListener("resize", handleViewportChange)
+
+    return () => {
+      window.removeEventListener("resize", handleResize)
+      window.visualViewport?.removeEventListener("resize", handleViewportChange)
+    }
+  }, [])
+
+  const floatingBarBottomClass = isKeyboardLikeOpen ? "bottom-24 lg:bottom-6" : "bottom-5 lg:bottom-6"
+  const menuBottomClass = isKeyboardLikeOpen ? "bottom-[116px] lg:bottom-24" : "bottom-[72px] lg:bottom-24"
+
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={cn("fixed bottom-5 left-1/2 z-50 -translate-x-1/2", navMode === "sidebar" ? "lg:hidden" : "")}
-      >
-        <div className={cn("flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2", theme.floating)}>
-          <button
-            className={cn("flex h-9 items-center gap-2 rounded-[16px] px-3 text-sm transition lg:h-10 lg:rounded-[20px]", theme.hover)}
-            onClick={onOpenSearch}
+      <AnimatePresence>
+        {!menuOpen ? (
+          <motion.div
+            key="floating-pill"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className={cn("fixed left-1/2 z-50 -translate-x-1/2", floatingBarBottomClass, navMode === "sidebar" ? "lg:hidden" : "")}
           >
-            <Search className="h-4 w-4" />
-            <span>Search...</span>
-          </button>
+            <div className={cn("flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2", theme.floating)}>
+              <button
+                className={cn("flex h-9 items-center gap-2 rounded-[16px] px-3 text-sm transition lg:h-10 lg:rounded-[20px]", theme.hover)}
+                onClick={onOpenSearch}
+              >
+                <Search className="h-4 w-4" />
+                <span>Search...</span>
+              </button>
 
-          <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
+              <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
 
-          <NotificationBell theme={theme} mobile />
+              <NotificationBell theme={theme} mobile />
 
-          <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
+              <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
 
-          <button
-            className={cn("flex h-9 w-9 items-center justify-center rounded-[16px] transition lg:h-10 lg:w-10 lg:rounded-[18px]", theme.hover)}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-        </div>
-      </motion.div>
+              <button
+                className={cn("flex h-9 w-9 items-center justify-center rounded-[16px] transition lg:h-10 lg:w-10 lg:rounded-[18px]", theme.hover)}
+                onClick={() => setMenuOpen(true)}
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {menuOpen ? (
           <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]" onClick={() => setMenuOpen(false)}>
             <motion.div
+              key="floating-menu-sheet"
               initial={{ opacity: 0, y: 24, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.22 }}
               className={cn(
-                "absolute bottom-20 left-1/2 z-[100] w-[390px] max-w-[calc(100vw-20px)] -translate-x-1/2 rounded-[28px] border p-2.5 shadow-2xl shadow-black/50 lg:bottom-24 lg:w-[420px] lg:max-w-[calc(100vw-24px)] lg:rounded-[32px] lg:p-3",
+                "absolute left-1/2 z-[100] w-[390px] max-w-[calc(100vw-20px)] -translate-x-1/2 rounded-[28px] border p-2.5 shadow-2xl shadow-black/50 lg:w-[420px] lg:max-w-[calc(100vw-24px)] lg:rounded-[32px] lg:p-3",
+                menuBottomClass,
                 theme.panel
               )}
               onClick={(e) => e.stopPropagation()}
@@ -156,7 +209,7 @@ export default function FloatingMenu({
                 <div className={cn("mb-2 text-[10px] uppercase tracking-[0.18em] lg:text-[11px]", theme.muted2)}>Current module</div>
               </div>
 
-              <div className="max-h-[44vh] overflow-auto pr-1 lg:max-h-[46vh]">
+              <div className="max-h-[min(38vh,420px)] overflow-auto pr-1 lg:max-h-[46vh]">
                 <div className="space-y-1 px-1 py-2">
                   {navItems.map((item) => {
                     const Icon = item.icon
@@ -170,7 +223,7 @@ export default function FloatingMenu({
                           setMenuOpen(false)
                         }}
                         className={cn(
-                          "group flex w-full items-center justify-between rounded-[18px] px-4 py-2.5 text-left transition-all lg:rounded-[22px] lg:py-3",
+                          "group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition-all lg:rounded-[22px] lg:px-4 lg:py-3",
                           selected ? theme.selected : theme.hover
                         )}
                       >
@@ -195,7 +248,7 @@ export default function FloatingMenu({
                     return (
                       <button
                         key={item.label}
-                        className={cn("group flex w-full items-center justify-between rounded-[18px] px-4 py-2.5 text-left transition lg:rounded-[22px] lg:py-3", theme.hover)}
+                        className={cn("group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3", theme.hover)}
                       >
                         <span className="flex items-center gap-3">
                           <Icon className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
@@ -238,7 +291,7 @@ export default function FloatingMenu({
                     onGoModules()
                     setMenuOpen(false)
                   }}
-                  className={cn("flex w-full items-center justify-between rounded-[18px] px-4 py-2.5 text-left transition lg:rounded-[22px] lg:py-3", theme.hover)}
+                  className={cn("flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3", theme.hover)}
                 >
                   <span className="flex items-center gap-3">
                     <Grid3X3 className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
@@ -252,7 +305,7 @@ export default function FloatingMenu({
                     onLogout()
                     setMenuOpen(false)
                   }}
-                  className="flex w-full items-center justify-between rounded-[18px] px-4 py-2.5 text-left text-rose-300 transition hover:bg-rose-500/10 lg:rounded-[22px] lg:py-3"
+                  className="flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left text-rose-300 transition hover:bg-rose-500/10 lg:rounded-[22px] lg:px-4 lg:py-3"
                 >
                   <span className="flex items-center gap-3">
                     <XCircle className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
