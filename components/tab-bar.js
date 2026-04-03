@@ -5,9 +5,9 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
-const DESKTOP_BUTTON_SLOT = 48
-const EDGE_FADE_WIDTH = 32
-const DESKTOP_SAFE_GAP = 8
+const ARROW_SLOT = 48
+const EDGE_FADE_WIDTH = 28
+const SCROLL_STEP = 260
 
 export default function TabBar({
   openTabs,
@@ -20,171 +20,125 @@ export default function TabBar({
   theme,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [isOverflowing, setIsOverflowing] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
-  const scrollRef = useRef(null)
+  const viewportRef = useRef(null)
   const tabRefs = useRef({})
-  const refreshTimerRef = useRef(null)
+  const timerRef = useRef(null)
 
-  const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 1024
-
-  const updateScrollState = () => {
-    const el = scrollRef.current
+  const refreshScrollState = () => {
+    const el = viewportRef.current
     if (!el) return
 
     const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth)
-    const overflowing = maxScrollLeft > 8
-
-    setIsOverflowing(overflowing)
+    setIsOverflowing(maxScrollLeft > 8)
     setCanScrollLeft(el.scrollLeft > 6)
     setCanScrollRight(el.scrollLeft < maxScrollLeft - 6)
   }
 
   const scheduleRefresh = () => {
-    if (refreshTimerRef.current) {
-      window.clearTimeout(refreshTimerRef.current)
-    }
-
-    refreshTimerRef.current = window.setTimeout(() => {
-      updateScrollState()
+    if (timerRef.current) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => {
+      refreshScrollState()
     }, 220)
   }
 
-  const scrollTabsBy = (amount) => {
-    const el = scrollRef.current
+  const scrollByAmount = (amount) => {
+    const el = viewportRef.current
     if (!el) return
 
-    el.scrollBy({
-      left: amount,
-      behavior: "smooth",
-    })
-
+    el.scrollBy({ left: amount, behavior: "smooth" })
     scheduleRefresh()
   }
 
-  const scrollTabIntoViewDesktopSafe = (tabId) => {
-    const container = scrollRef.current
+  const scrollTabIntoView = (tabId) => {
     const tabEl = tabRefs.current[tabId]
-    if (!container || !tabEl) return
+    if (!tabEl) return
 
-    if (!isDesktop()) {
-      tabEl.scrollIntoView({
-        behavior: "smooth",
-        inline: "nearest",
-        block: "nearest",
-      })
-      scheduleRefresh()
-      return
-    }
-
-    const leftInset = isOverflowing ? DESKTOP_BUTTON_SLOT : 0
-    const rightInset = isOverflowing ? DESKTOP_BUTTON_SLOT : 0
-
-    const tabLeft = tabEl.offsetLeft
-    const tabRight = tabLeft + tabEl.offsetWidth
-
-    const visibleLeft = container.scrollLeft + leftInset
-    const visibleRight = container.scrollLeft + container.clientWidth - rightInset
-
-    let nextScrollLeft = container.scrollLeft
-
-    if (tabLeft < visibleLeft) {
-      nextScrollLeft = Math.max(0, tabLeft - leftInset - DESKTOP_SAFE_GAP)
-    } else if (tabRight > visibleRight) {
-      nextScrollLeft = Math.min(
-        container.scrollWidth - container.clientWidth,
-        tabRight - container.clientWidth + rightInset + DESKTOP_SAFE_GAP
-      )
-    }
-
-    if (Math.abs(nextScrollLeft - container.scrollLeft) > 1) {
-      container.scrollTo({
-        left: nextScrollLeft,
-        behavior: "smooth",
-      })
-    }
+    tabEl.scrollIntoView({
+      behavior: "smooth",
+      inline: isDesktop ? "start" : "nearest",
+      block: "nearest",
+    })
 
     scheduleRefresh()
   }
 
   const handleTabClick = (tabId) => {
     onActivate(tabId)
-
     requestAnimationFrame(() => {
-      scrollTabIntoViewDesktopSafe(tabId)
+      scrollTabIntoView(tabId)
     })
   }
 
   useEffect(() => {
-    updateScrollState()
-
-    const el = scrollRef.current
-    if (!el) return
-
-    const handleScroll = () => updateScrollState()
-    el.addEventListener("scroll", handleScroll, { passive: true })
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateScrollState()
-    })
-
-    resizeObserver.observe(el)
-
-    const handleResize = () => updateScrollState()
-    window.addEventListener("resize", handleResize)
-
-    return () => {
-      el.removeEventListener("scroll", handleScroll)
-      resizeObserver.disconnect()
-      window.removeEventListener("resize", handleResize)
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current)
-      }
+    const updateDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024)
     }
-  }, [openTabs])
+
+    updateDesktop()
+    window.addEventListener("resize", updateDesktop)
+    return () => window.removeEventListener("resize", updateDesktop)
+  }, [])
 
   useEffect(() => {
-    scrollTabIntoViewDesktopSafe(activeTabId)
-  }, [activeTabId, openTabs])
+    refreshScrollState()
 
-  const showDesktopScrollSlots = isDesktop() && isOverflowing
+    const el = viewportRef.current
+    if (!el) return
+
+    const onScroll = () => refreshScrollState()
+    el.addEventListener("scroll", onScroll, { passive: true })
+
+    const ro = new ResizeObserver(() => refreshScrollState())
+    ro.observe(el)
+
+    return () => {
+      el.removeEventListener("scroll", onScroll)
+      ro.disconnect()
+      if (timerRef.current) window.clearTimeout(timerRef.current)
+    }
+  }, [openTabs, isDesktop])
+
+  useEffect(() => {
+    scrollTabIntoView(activeTabId)
+  }, [activeTabId, openTabs, isDesktop])
+
+  const showDesktopArrowSlots = isDesktop && isOverflowing
 
   return (
     <div className={cn("sticky top-0 z-40 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="relative flex items-center gap-2">
-        <div className={cn("hidden shrink-0 lg:block", showDesktopScrollSlots ? "w-12" : "w-0")}>
-          {showDesktopScrollSlots ? (
-            <AnimatePresence mode="wait">
-              {canScrollLeft ? (
+        <div className={cn("hidden shrink-0 lg:block", showDesktopArrowSlots ? "w-12" : "w-0")}>
+          <AnimatePresence mode="wait">
+            {showDesktopArrowSlots ? (
+              canScrollLeft ? (
                 <motion.button
-                  key="left-enabled"
+                  key="left-arrow"
                   type="button"
-                  onClick={() => scrollTabsBy(-220)}
+                  onClick={() => scrollByAmount(-SCROLL_STEP)}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -6 }}
                   transition={{ duration: 0.16 }}
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl border transition",
-                    theme.card,
-                    theme.hover
-                  )}
+                  className={cn("flex h-10 w-10 items-center justify-center rounded-xl border transition", theme.card, theme.hover)}
                   aria-label="Scroll tabs left"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </motion.button>
               ) : (
                 <div className="h-10 w-10" />
-              )}
-            </AnimatePresence>
-          ) : null}
+              )
+            ) : null}
+          </AnimatePresence>
         </div>
 
         <div className="relative min-w-0 flex-1">
           <AnimatePresence>
-            {showDesktopScrollSlots && canScrollLeft ? (
+            {showDesktopArrowSlots && canScrollLeft ? (
               <motion.div
                 key="left-fade"
                 initial={{ opacity: 0 }}
@@ -207,7 +161,7 @@ export default function TabBar({
           </AnimatePresence>
 
           <AnimatePresence>
-            {showDesktopScrollSlots && canScrollRight ? (
+            {showDesktopArrowSlots && canScrollRight ? (
               <motion.div
                 key="right-fade"
                 initial={{ opacity: 0 }}
@@ -230,8 +184,8 @@ export default function TabBar({
           </AnimatePresence>
 
           <div
-            ref={scrollRef}
-            className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto scroll-smooth px-1"
+            ref={viewportRef}
+            className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto scroll-smooth snap-x snap-proximity px-1 lg:px-2"
           >
             {openTabs.map((tab) => (
               <button
@@ -241,7 +195,7 @@ export default function TabBar({
                 }}
                 onClick={() => handleTabClick(tab.id)}
                 className={cn(
-                  "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                  "group flex shrink-0 snap-start items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
                   tab.id === activeTabId ? theme.selected : cn(theme.card, theme.hover)
                 )}
               >
@@ -262,32 +216,28 @@ export default function TabBar({
           </div>
         </div>
 
-        <div className={cn("hidden shrink-0 lg:block", showDesktopScrollSlots ? "w-12" : "w-0")}>
-          {showDesktopScrollSlots ? (
-            <AnimatePresence mode="wait">
-              {canScrollRight ? (
+        <div className={cn("hidden shrink-0 lg:block", showDesktopArrowSlots ? "w-12" : "w-0")}>
+          <AnimatePresence mode="wait">
+            {showDesktopArrowSlots ? (
+              canScrollRight ? (
                 <motion.button
-                  key="right-enabled"
+                  key="right-arrow"
                   type="button"
-                  onClick={() => scrollTabsBy(220)}
+                  onClick={() => scrollByAmount(SCROLL_STEP)}
                   initial={{ opacity: 0, x: 6 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 6 }}
                   transition={{ duration: 0.16 }}
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl border transition",
-                    theme.card,
-                    theme.hover
-                  )}
+                  className={cn("flex h-10 w-10 items-center justify-center rounded-xl border transition", theme.card, theme.hover)}
                   aria-label="Scroll tabs right"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </motion.button>
               ) : (
                 <div className="h-10 w-10" />
-              )}
-            </AnimatePresence>
-          ) : null}
+              )
+            ) : null}
+          </AnimatePresence>
         </div>
 
         <div className="relative shrink-0">
