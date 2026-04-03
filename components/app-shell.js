@@ -365,24 +365,25 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
           </div>
 
           <FloatingMenu
-            navItems={navItems}
-            activeNav={activeNav}
-            onSwitchPage={switchPage}
-            onGoModules={goToModules}
-            onLogout={goToLogin}
-            menuOpen={menuOpen}
-            setMenuOpen={setMenuOpen}
-            onOpenSearch={() => {
-              setMenuOpen(false)
-              setSearchOpen(true)
-            }}
-            themeMode={themeMode}
-            setThemeMode={setThemeMode}
-            customTheme={customTheme}
-            setCustomTheme={setCustomTheme}
-            theme={theme}
-            navMode={navMode}
-          />
+  navItems={navItems}
+  activeNav={activeNav}
+  onSwitchPage={switchPage}
+  onGoModules={goToModules}
+  onLogout={goToLogin}
+  menuOpen={menuOpen}
+  setMenuOpen={setMenuOpen}
+  onOpenSearch={() => {
+    setMenuOpen(false)
+    setSearchOpen(true)
+  }}
+  themeMode={themeMode}
+  setThemeMode={setThemeMode}
+  customTheme={customTheme}
+  setCustomTheme={setCustomTheme}
+  theme={theme}
+  navMode={navMode}
+  user={user}
+/>
         </>
       )}
     </div>
