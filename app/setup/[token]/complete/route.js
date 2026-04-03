@@ -6,7 +6,164 @@ const DEFAULT_TRIAL_MODULES = ["itsm", "control", "selfservice", "admin"]
 function initialsFromName(name, email) {
   const source = name?.trim() || email?.trim() || "User"
   const parts = source.split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "U"
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("") || "U"
+}
+
+async function ensureProfile(admin, { userId, email, fullName }) {
+  const { error } = await admin
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        initials: initialsFromName(fullName, email),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    )
+
+  if (error) throw error
+}
+
+async function ensureTenant(admin, signup, authUserId) {
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: existingById } = signup.created_tenant_id
+    ? await admin
+        .from("tenants")
+        .select("id, slug")
+        .eq("id", signup.created_tenant_id)
+        .maybeSingle()
+    : { data: null }
+
+  if (existingById) return existingById
+
+  const { data: existingBySlug } = await admin
+    .from("tenants")
+    .select("id, slug, created_by")
+    .eq("slug", signup.tenant_slug)
+    .maybeSingle()
+
+  if (existingBySlug) {
+    if (!existingBySlug.created_by) {
+      await admin
+        .from("tenants")
+        .update({
+          created_by: authUserId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingBySlug.id)
+    }
+    return existingBySlug
+  }
+
+  const { data: tenant, error } = await admin
+    .from("tenants")
+    .insert({
+      name: signup.tenant_name,
+      slug: signup.tenant_slug,
+      status: "trial",
+      plan: "trial",
+      created_by: authUserId,
+      trial_ends_at: trialEndsAt,
+    })
+    .select("id, slug")
+    .single()
+
+  if (error) throw error
+  return tenant
+}
+
+async function ensureMembership(admin, tenantId, userId) {
+  const { data: existing } = await admin
+    .from("memberships")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (existing) return existing
+
+  const { data, error } = await admin
+    .from("memberships")
+    .insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      role: "owner",
+      status: "active",
+    })
+    .select("id")
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+async function ensureAdminGroup(admin, tenantId) {
+  const { data: existing } = await admin
+    .from("groups")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("name", "Workspace Admins")
+    .maybeSingle()
+
+  if (existing) return existing
+
+  const { data, error } = await admin
+    .from("groups")
+    .insert({
+      tenant_id: tenantId,
+      name: "Workspace Admins",
+      description: "Default administrative group",
+    })
+    .select("id")
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+async function ensureGroupMember(admin, groupId, userId) {
+  const { data: existing } = await admin
+    .from("group_members")
+    .select("id")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (existing) return existing
+
+  const { data, error } = await admin
+    .from("group_members")
+    .insert({
+      group_id: groupId,
+      user_id: userId,
+    })
+    .select("id")
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+async function ensureModuleAssignments(admin, tenantId, userId) {
+  const moduleRows = DEFAULT_TRIAL_MODULES.map((moduleKey) => ({
+    tenant_id: tenantId,
+    user_id: userId,
+    module_key: moduleKey,
+  }))
+
+  const { error } = await admin
+    .from("module_assignments")
+    .upsert(moduleRows, {
+      onConflict: "tenant_id,user_id,module_key",
+    })
+
+  if (error) throw error
 }
 
 export async function GET(_request, context) {
@@ -67,83 +224,20 @@ export async function GET(_request, context) {
       throw new Error("Failed to generate owner invite link")
     }
 
-    const { error: profileError } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: authUserId,
-          email: signup.superuser_email,
-          full_name: signup.full_name,
-          initials: initialsFromName(signup.full_name, signup.superuser_email),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
+    await ensureProfile(admin, {
+      userId: authUserId,
+      email: signup.superuser_email,
+      fullName: signup.full_name,
+    })
 
-    if (profileError) throw profileError
+    const tenant = await ensureTenant(admin, signup, authUserId)
 
-    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+    await ensureMembership(admin, tenant.id, authUserId)
 
-    const { data: tenant, error: tenantError } = await admin
-      .from("tenants")
-      .insert({
-        name: signup.tenant_name,
-        slug: signup.tenant_slug,
-        status: "trial",
-        plan: "trial",
-        created_by: authUserId,
-        trial_ends_at: trialEndsAt,
-      })
-      .select("id, slug")
-      .single()
+    const adminGroup = await ensureAdminGroup(admin, tenant.id)
+    await ensureGroupMember(admin, adminGroup.id, authUserId)
 
-    if (tenantError) throw tenantError
-
-    const { error: membershipError } = await admin
-      .from("memberships")
-      .insert({
-        tenant_id: tenant.id,
-        user_id: authUserId,
-        role: "owner",
-        status: "active",
-      })
-
-    if (membershipError) throw membershipError
-
-    const { data: adminGroup, error: groupError } = await admin
-      .from("groups")
-      .insert({
-        tenant_id: tenant.id,
-        name: "Workspace Admins",
-        description: "Default administrative group",
-      })
-      .select("id")
-      .single()
-
-    if (groupError) throw groupError
-
-    const { error: groupMemberError } = await admin
-      .from("group_members")
-      .insert({
-        group_id: adminGroup.id,
-        user_id: authUserId,
-      })
-
-    if (groupMemberError) throw groupMemberError
-
-    const moduleRows = DEFAULT_TRIAL_MODULES.map((moduleKey) => ({
-      tenant_id: tenant.id,
-      user_id: authUserId,
-      module_key: moduleKey,
-    }))
-
-    const { error: moduleError } = await admin
-      .from("module_assignments")
-      .upsert(moduleRows, {
-        onConflict: "tenant_id,user_id,module_key",
-      })
-
-    if (moduleError) throw moduleError
+    await ensureModuleAssignments(admin, tenant.id, authUserId)
 
     const { error: signupUpdateError } = await admin
       .from("trial_signups")
