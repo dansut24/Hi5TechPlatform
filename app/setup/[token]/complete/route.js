@@ -12,6 +12,10 @@ function initialsFromName(name, email) {
     .join("") || "U"
 }
 
+function getSiteUrl(request) {
+  return process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
+}
+
 async function ensureProfile(admin, { userId, email, fullName }) {
   const { error } = await admin
     .from("profiles")
@@ -166,11 +170,11 @@ async function ensureModuleAssignments(admin, tenantId, userId) {
   if (error) throw error
 }
 
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
     const admin = getSupabaseAdminClient()
     const { token } = await context.params
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+    const siteUrl = getSiteUrl(request)
 
     const { data: signup, error: signupError } = await admin
       .from("trial_signups")
@@ -231,12 +235,9 @@ export async function GET(_request, context) {
     })
 
     const tenant = await ensureTenant(admin, signup, authUserId)
-
     await ensureMembership(admin, tenant.id, authUserId)
-
     const adminGroup = await ensureAdminGroup(admin, tenant.id)
     await ensureGroupMember(admin, adminGroup.id, authUserId)
-
     await ensureModuleAssignments(admin, tenant.id, authUserId)
 
     const { error: signupUpdateError } = await admin
