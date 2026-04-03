@@ -9,6 +9,9 @@ const protectedPrefixes = [
   "/analytics",
   "/automation",
   "/select-module",
+  "/select-tenant",
+  "/create-workspace",
+  "/tenant",
 ]
 
 export async function middleware(request) {
@@ -64,5 +67,8 @@ export const config = {
     "/analytics/:path*",
     "/automation/:path*",
     "/select-module/:path*",
+    "/select-tenant/:path*",
+    "/create-workspace/:path*",
+    "/tenant/:path*",
   ],
 }
