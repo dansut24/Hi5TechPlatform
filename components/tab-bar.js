@@ -9,9 +9,7 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
   const [pickerOpen, setPickerOpen] = useState(false)
 
   return (
-    <div
-  className={cn("sticky top-0 z-20 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}
->
+    <div className={cn("sticky top-0 z-20 border-b px-4 py-2 backdrop-blur-xl lg:px-6", theme.header)}>
       <div className="flex items-center gap-2 overflow-x-auto">
         {openTabs.map((tab) => (
           <button
@@ -45,6 +43,7 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
           >
             <Plus className="h-4 w-4" />
           </button>
+
           <AnimatePresence>
             {pickerOpen ? (
               <motion.div
@@ -54,7 +53,10 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
                 transition={{ duration: 0.16 }}
                 className={cn("absolute left-0 top-12 z-40 w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40", theme.panel)}
               >
-                <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>{currentModuleTitle} pages</div>
+                <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>
+                  {currentModuleTitle} pages
+                </div>
+
                 <div className="space-y-1">
                   {navItems.map((item) => {
                     const Icon = item.icon
@@ -76,8 +78,13 @@ export default function TabBar({ openTabs, activeTabId, onActivate, onClose, onA
                     )
                   })}
                 </div>
+
                 <div className={cn("my-3 border-t", theme.line)} />
-                <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>Recent / common</div>
+
+                <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>
+                  Recent / common
+                </div>
+
                 <div className="space-y-1">
                   {navItems.slice(0, 6).map((item) => (
                     <button
