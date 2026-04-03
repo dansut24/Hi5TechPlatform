@@ -204,14 +204,14 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
       setAuthLoading(true)
       if (authMode === "signin") {
         await signInWithPassword({ email: trimmedEmail, password })
-        router.push("/select-module")
+window.location.href = "/select-module"
         return
       }
       const result = await signUpWithPassword({ email: trimmedEmail, password })
       if (result?.user && !result?.session) {
         setAuthError("Account created. Check your email to confirm your address before signing in.")
       } else {
-        router.push("/select-module")
+        window.location.href = "/select-module")
       }
     } catch (error) {
       setAuthError(error.message || "Unable to continue")
