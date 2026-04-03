@@ -25,7 +25,7 @@ export default function MarketingPage() {
               Sign in
             </a>
             <a
-              href="/login?mode=signup&next=/create-workspace&trial=1"
+              href="/trial/start"
               className={
                 theme.resolved === "light"
                   ? "rounded-2xl bg-slate-950 px-4 py-2 text-sm text-white"
