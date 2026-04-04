@@ -12,11 +12,7 @@ function initialsFromName(name, slug) {
     .join("") || "T"
 }
 
-export default function TenantLoginPage({
-  theme,
-  tenant,
-  ready = false,
-}) {
+export default function TenantLoginPage({ theme, tenant, ready = false }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
