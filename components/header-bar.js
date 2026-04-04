@@ -101,75 +101,24 @@ export default function HeaderBar({
   currentModuleTitle,
   navItems,
   activeNav,
-  branding = null,
-  tenantName = "",
 }) {
   return (
     <div
       className={cn("relative z-50 border-b backdrop-blur-xl", theme.header)}
-      style={{
-        height: "var(--header-height)",
-        background: branding?.brandHex
-          ? `linear-gradient(180deg, rgba(var(--tenant-brand-rgb),0.10), rgba(var(--tenant-brand-rgb),0.03))`
-          : undefined,
-        borderColor: branding?.brandHex
-          ? "rgba(var(--tenant-brand-rgb),0.12)"
-          : undefined,
-      }}
+      style={{ height: "var(--header-height)" }}
     >
-      <div className="flex h-full items-center justify-between gap-3 px-4 py-2 lg:px-6 lg:py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9",
-              theme.card
-            )}
-            style={{
-              boxShadow: branding?.brandHex
-                ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.14), 0 0 20px rgba(var(--tenant-brand-rgb),0.10)"
-                : undefined,
-            }}
-          >
-            <Sparkles
-              className="h-3.5 w-3.5 lg:h-4 lg:w-4"
-              style={{
-                color: branding?.brandHex || undefined,
-              }}
-            />
-          </div>
-
-          <div className="min-w-0">
-            <HeaderBreadcrumbs
-              currentModuleTitle={currentModuleTitle}
-              navItems={navItems}
-              activeNav={activeNav}
-              theme={theme}
-            />
-          </div>
+      <div className="flex h-full items-center gap-3 px-4 py-2 lg:px-6 lg:py-3">
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9", theme.card)}>
+          <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {tenantName ? (
-            <div
-              className={cn(
-                "hidden rounded-full border px-3 py-1 text-xs md:inline-flex",
-                theme.card,
-                theme.muted
-              )}
-              style={{
-                borderColor: branding?.brandHex
-                  ? "rgba(var(--tenant-brand-rgb),0.18)"
-                  : undefined,
-                background: branding?.brandHex
-                  ? "rgba(var(--tenant-brand-rgb),0.08)"
-                  : undefined,
-              }}
-            >
-              {tenantName}
-            </div>
-          ) : null}
-
-          <NotificationBell theme={theme} />
+        <div className="min-w-0">
+          <HeaderBreadcrumbs
+            currentModuleTitle={currentModuleTitle}
+            navItems={navItems}
+            activeNav={activeNav}
+            theme={theme}
+          />
         </div>
       </div>
     </div>
