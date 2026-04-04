@@ -5,5 +5,5 @@ export default async function TenantSelfServicePage({ params }) {
   const { slug } = await params
   await requireTenantAccess(slug)
 
-  return <AppShell initialView="app" forcedModule="selfservice" />
+  return <AppShell initialView="app" forcedModule="selfservice" tenantSlug={slug} />
 }
