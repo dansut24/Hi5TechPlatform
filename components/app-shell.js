@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
 import { signOut } from "@/lib/supabase/auth"
+import { tenantDashboardPath, tenantLoginPath, tenantModulePath } from "@/lib/tenant/paths"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
@@ -116,18 +117,15 @@ export default function AppShell({
     themeMode === "system" ? systemTheme : themeMode === "custom" ? customTheme : themeMode
   const theme = { ...themeMap[resolvedThemeKey], resolved: resolvedThemeKey }
 
-  const tenantBasePath = tenantSlug ? `/tenant/${tenantSlug}` : ""
+  const routeByModule = {
+    itsm: tenantModulePath(tenantSlug, "itsm"),
+    control: tenantModulePath(tenantSlug, "control"),
+    selfservice: tenantModulePath(tenantSlug, "selfservice"),
+    admin: tenantModulePath(tenantSlug, "admin"),
+    analytics: tenantModulePath(tenantSlug, "analytics"),
+    automation: tenantModulePath(tenantSlug, "automation"),
+  }
 
-  import { tenantModulePath, tenantPath } from "@/lib/tenant/paths"
-
-const routeByModule = {
-  itsm: tenantModulePath(tenantSlug, "itsm"),
-  control: tenantModulePath(tenantSlug, "control"),
-  selfservice: tenantModulePath(tenantSlug, "selfservice"),
-  admin: tenantModulePath(tenantSlug, "admin"),
-  analytics: tenantModulePath(tenantSlug, "analytics"),
-  automation: tenantModulePath(tenantSlug, "automation"),
-}
   const openModule = (moduleId) => {
     setCurrentModule(moduleId)
     const firstPage = navByModule[moduleId][0]
@@ -180,25 +178,15 @@ const routeByModule = {
 
   const goToModules = () => {
     setAppState("modules")
-    if (tenantSlug) {
-      router.push(`${tenantBasePath}/dashboard`)
-    } else {
-      router.push(tenantPath(tenantSlug, "dashboard"))
-    }
+    router.push(tenantDashboardPath(tenantSlug))
   }
 
   const goToLogin = async () => {
     try {
       await signOut()
-    } catch {
-      // still redirect even if signOut throws
-    }
+    } catch {}
 
-    if (tenantSlug) {
-      router.push(`${tenantBasePath}/login`)
-    } else {
-      router.push("/login")
-    }
+    router.push(tenantLoginPath(tenantSlug))
   }
 
   const desktopContentOffset =
@@ -215,7 +203,14 @@ const routeByModule = {
         theme={theme}
       />
 
-      {appState === "modules" && <ModuleSelector user={user} onEnterModule={openModule} theme={theme} />}
+      {appState === "modules" && (
+        <ModuleSelector
+          user={user}
+          onEnterModule={openModule}
+          theme={theme}
+          tenantSlug={tenantSlug}
+        />
+      )}
 
       {appState === "app" && (
         <>
@@ -230,6 +225,7 @@ const routeByModule = {
               collapsed={sidebarCollapsed}
               setCollapsed={setSidebarCollapsed}
               theme={theme}
+              tenantSlug={tenantSlug}
             />
           ) : null}
 
@@ -251,7 +247,12 @@ const routeByModule = {
               theme={theme}
             />
             <main className="px-5 pb-28 pt-6 lg:px-8">
-              <ModuleContent moduleId={currentModule} activeNav={activeNav} theme={theme} />
+              <ModuleContent
+                moduleId={currentModule}
+                activeNav={activeNav}
+                theme={theme}
+                tenantSlug={tenantSlug}
+              />
             </main>
           </div>
 
@@ -274,6 +275,7 @@ const routeByModule = {
             theme={theme}
             navMode={navMode}
             user={user}
+            tenantSlug={tenantSlug}
           />
         </>
       )}
