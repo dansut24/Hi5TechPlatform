@@ -23,6 +23,12 @@ function isPublicRoute(pathname) {
   return false
 }
 
+function getTenantLoginPath(pathname) {
+  const match = pathname.match(/^\/tenant\/([^/]+)/)
+  if (!match) return null
+  return `/tenant/${match[1]}/login`
+}
+
 const protectedPrefixes = [
   "/itsm",
   "/control",
@@ -37,7 +43,7 @@ const protectedPrefixes = [
 ]
 
 export async function middleware(request) {
-  const { pathname } = request.nextUrl
+  const { pathname, search } = request.nextUrl
 
   if (isPublicRoute(pathname)) {
     return NextResponse.next()
@@ -77,8 +83,15 @@ export async function middleware(request) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("next", pathname)
+    const tenantLoginPath = getTenantLoginPath(pathname)
+    const redirectPath = `${pathname}${search || ""}`
+
+    const loginUrl = new URL(
+      tenantLoginPath || "/login",
+      request.url
+    )
+
+    loginUrl.searchParams.set("next", redirectPath)
     return NextResponse.redirect(loginUrl)
   }
 
