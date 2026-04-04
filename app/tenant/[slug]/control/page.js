@@ -5,5 +5,5 @@ export default async function TenantControlPage({ params }) {
   const { slug } = await params
   await requireTenantAccess(slug)
 
-  return <AppShell initialView="app" forcedModule="control" />
+  return <AppShell initialView="app" forcedModule="control" tenantSlug={slug} />
 }
