@@ -12,7 +12,6 @@ import {
   UserCircle2,
   LayoutDashboard,
   Settings,
-  X,
   XCircle,
 } from "lucide-react"
 import { cn } from "@/components/shared-ui"
@@ -108,6 +107,8 @@ export default function FloatingMenu({
   navMode,
   user,
   tenantSlug,
+  branding,
+  tenantName,
 }) {
   const [isKeyboardLikeOpen, setIsKeyboardLikeOpen] = useState(false)
 
@@ -164,7 +165,14 @@ export default function FloatingMenu({
             exit={{ opacity: 0, y: 10 }}
             className={cn("fixed left-1/2 z-50 -translate-x-1/2", floatingBarBottomClass, navMode === "sidebar" ? "lg:hidden" : "")}
           >
-            <div className={cn("flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2", theme.floating)}>
+            <div
+              className={cn("flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2", theme.floating)}
+              style={{
+                boxShadow: branding?.brandHex
+                  ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.12), 0 14px 40px rgba(var(--tenant-brand-rgb),0.12)"
+                  : undefined,
+              }}
+            >
               <button
                 className={cn("flex h-9 items-center gap-2 rounded-[16px] px-3 text-sm transition lg:h-10 lg:rounded-[20px]", theme.hover)}
                 onClick={onOpenSearch}
@@ -204,10 +212,17 @@ export default function FloatingMenu({
                 menuBottomClass,
                 theme.panel
               )}
+              style={{
+                boxShadow: branding?.brandHex
+                  ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.12), 0 24px 60px rgba(var(--tenant-brand-rgb),0.16)"
+                  : undefined,
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className={cn("border-b px-2 pb-2.5 pt-2 lg:pb-3", theme.line)}>
-                <div className={cn("mb-2 text-[10px] uppercase tracking-[0.18em] lg:text-[11px]", theme.muted2)}>Current module</div>
+                <div className={cn("mb-2 text-[10px] uppercase tracking-[0.18em] lg:text-[11px]", theme.muted2)}>
+                  {tenantName || tenantSlug || "Current module"}
+                </div>
               </div>
 
               <div className="max-h-[min(38vh,420px)] overflow-auto pr-1 lg:max-h-[46vh]">
@@ -227,6 +242,14 @@ export default function FloatingMenu({
                           "group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition-all lg:rounded-[22px] lg:px-4 lg:py-3",
                           selected ? theme.selected : theme.hover
                         )}
+                        style={
+                          selected && branding?.brandHex
+                            ? {
+                                background: "rgba(var(--tenant-brand-rgb),0.10)",
+                                boxShadow: "0 0 0 1px rgba(var(--tenant-brand-rgb),0.14)",
+                              }
+                            : undefined
+                        }
                       >
                         <span className="flex items-center gap-3">
                           <Icon className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
@@ -274,7 +297,14 @@ export default function FloatingMenu({
 
               {user ? (
                 <div className={cn("mt-2.5 border-t px-2 pt-2.5 lg:mt-3 lg:pt-3", theme.line)}>
-                  <div className={cn("flex items-center gap-3 rounded-[20px] border p-3 lg:rounded-[22px] lg:p-4", theme.subCard, theme.line)}>
+                  <div
+                    className={cn("flex items-center gap-3 rounded-[20px] border p-3 lg:rounded-[22px] lg:p-4", theme.subCard, theme.line)}
+                    style={{
+                      background: branding?.brandHex
+                        ? "linear-gradient(135deg, rgba(var(--tenant-brand-rgb),0.10), rgba(var(--tenant-brand-rgb),0.03))"
+                        : undefined,
+                    }}
+                  >
                     <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold lg:h-11 lg:w-11", theme.card)}>
                       {user.initials}
                     </div>
@@ -283,7 +313,7 @@ export default function FloatingMenu({
                       <div className={cn("truncate text-xs", theme.muted)}>{user.role}</div>
                       {tenantSlug ? (
                         <div className={cn("truncate text-[11px]", theme.muted2)}>
-                          {tenantSlug}
+                          {tenantName || tenantSlug}
                         </div>
                       ) : null}
                     </div>
