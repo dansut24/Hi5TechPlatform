@@ -183,7 +183,7 @@ const routeByModule = {
     if (tenantSlug) {
       router.push(`${tenantBasePath}/dashboard`)
     } else {
-      router.push("/select-module")
+      router.push(tenantPath(tenantSlug, "dashboard"))
     }
   }
 
