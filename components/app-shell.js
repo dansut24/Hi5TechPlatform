@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
+import { signOut } from "@/lib/supabase/auth"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
@@ -21,16 +22,11 @@ const moduleRouteMap = {
   "/automation": "automation",
 }
 
-const routeByModule = {
-  itsm: "/itsm",
-  control: "/control",
-  selfservice: "/selfservice",
-  admin: "/admin",
-  analytics: "/analytics",
-  automation: "/automation",
-}
-
-export default function AppShell({ initialView = "app", forcedModule = "itsm" }) {
+export default function AppShell({
+  initialView = "app",
+  forcedModule = "itsm",
+  tenantSlug = null,
+}) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -45,12 +41,15 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
   const [customTheme, setCustomTheme] = useState("midnight")
   const [navMode, setNavMode] = useState("sidebar")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [openTabs, setOpenTabs] = useState([{ id: "dashboard", pageId: "dashboard", label: "Dashboard", closable: false }])
+  const [openTabs, setOpenTabs] = useState([
+    { id: "dashboard", pageId: "dashboard", label: "Dashboard", closable: false },
+  ])
   const [activeTabId, setActiveTabId] = useState("dashboard")
 
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
   const navItems = navByModule[currentModule]
-  const currentModuleTitle = modules.find((module) => module.id === currentModule)?.title || "Workspace"
+  const currentModuleTitle =
+    modules.find((module) => module.id === currentModule)?.title || "Workspace"
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -82,7 +81,9 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
       setAppState("app")
       setCurrentModule(moduleId)
       setActiveNav(firstPage.id)
-      setOpenTabs([{ id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false }])
+      setOpenTabs([
+        { id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false },
+      ])
       setActiveTabId(firstPage.id)
     }
   }, [pathname])
@@ -111,8 +112,20 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  const resolvedThemeKey = themeMode === "system" ? systemTheme : themeMode === "custom" ? customTheme : themeMode
+  const resolvedThemeKey =
+    themeMode === "system" ? systemTheme : themeMode === "custom" ? customTheme : themeMode
   const theme = { ...themeMap[resolvedThemeKey], resolved: resolvedThemeKey }
+
+  const tenantBasePath = tenantSlug ? `/tenant/${tenantSlug}` : ""
+
+  const routeByModule = {
+    itsm: tenantSlug ? `${tenantBasePath}/itsm` : "/itsm",
+    control: tenantSlug ? `${tenantBasePath}/control` : "/control",
+    selfservice: tenantSlug ? `${tenantBasePath}/selfservice` : "/selfservice",
+    admin: tenantSlug ? `${tenantBasePath}/admin` : "/admin",
+    analytics: tenantSlug ? `${tenantBasePath}/analytics` : "/analytics",
+    automation: tenantSlug ? `${tenantBasePath}/automation` : "/automation",
+  }
 
   const openModule = (moduleId) => {
     setCurrentModule(moduleId)
@@ -166,14 +179,29 @@ export default function AppShell({ initialView = "app", forcedModule = "itsm" })
 
   const goToModules = () => {
     setAppState("modules")
-    router.push("/select-module")
+    if (tenantSlug) {
+      router.push(`${tenantBasePath}/dashboard`)
+    } else {
+      router.push("/select-module")
+    }
   }
 
-  const goToLogin = () => {
-    router.push("/login")
+  const goToLogin = async () => {
+    try {
+      await signOut()
+    } catch {
+      // still redirect even if signOut throws
+    }
+
+    if (tenantSlug) {
+      router.push(`${tenantBasePath}/login`)
+    } else {
+      router.push("/login")
+    }
   }
 
-  const desktopContentOffset = navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
+  const desktopContentOffset =
+    navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
 
   return (
     <div className={`min-h-screen w-full transition-colors duration-300 ${theme.app}`}>
