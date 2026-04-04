@@ -1,22 +1,36 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { signInWithPassword } from "@/lib/supabase/auth"
 
 function initialsFromName(name, slug) {
   const source = name?.trim() || slug?.trim() || "Tenant"
   const parts = source.split(/\s+/).filter(Boolean)
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "T"
+  return (
+    parts
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "T"
+  )
+}
+
+function getSafeNext(next, fallback) {
+  if (!next) return fallback
+  if (!next.startsWith("/")) return fallback
+  if (next.startsWith("//")) return fallback
+  return next
 }
 
 export default function TenantLoginPage({ theme, tenant, ready = false }) {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const fallbackPath = `/tenant/${tenant.slug}/dashboard`
+  const next = getSafeNext(searchParams.get("next"), fallbackPath)
 
   const submit = async () => {
     try {
@@ -35,7 +49,7 @@ export default function TenantLoginPage({ theme, tenant, ready = false }) {
         password,
       })
 
-      window.location.href = `/tenant/${tenant.slug}`
+      window.location.href = next
     } catch (err) {
       setError(err.message || "Unable to sign in")
     } finally {
@@ -97,6 +111,9 @@ export default function TenantLoginPage({ theme, tenant, ready = false }) {
                 className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit()
+                }}
               />
             </div>
 
