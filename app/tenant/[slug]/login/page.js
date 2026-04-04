@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation"
 import { themeMap } from "@/lib/themes"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
+import { getTenantBranding } from "@/lib/tenant/branding"
+import TenantBrandShell from "@/components/tenant-brand-shell"
 import TenantLoginPage from "@/components/auth/tenant-login-page"
 
 export default async function TenantLoginRoutePage({ params, searchParams }) {
@@ -11,7 +13,7 @@ export default async function TenantLoginRoutePage({ params, searchParams }) {
 
   const { data: tenant, error } = await admin
     .from("tenants")
-    .select("id, name, slug, status, plan, logo_url")
+    .select("id, name, slug, status, plan, logo_url, brand_hex, brand_dark_hex, login_heading, login_message")
     .eq("slug", slug)
     .maybeSingle()
 
@@ -19,5 +21,11 @@ export default async function TenantLoginRoutePage({ params, searchParams }) {
     notFound()
   }
 
-  return <TenantLoginPage theme={theme} tenant={tenant} ready={ready} />
+  const branding = getTenantBranding(tenant)
+
+  return (
+    <TenantBrandShell branding={branding}>
+      <TenantLoginPage theme={theme} tenant={tenant} branding={branding} ready={ready} />
+    </TenantBrandShell>
+  )
 }
