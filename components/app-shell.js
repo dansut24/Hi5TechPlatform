@@ -36,16 +36,18 @@ function getRouteForNav({ tenantSlug, currentModule, pageId }) {
 export default function AppShell({
   initialView = "app",
   forcedModule = "itsm",
+  initialNav = "dashboard",
   tenantSlug = null,
   tenantName = "",
   branding = null,
+  tenantData = null,
 }) {
   const router = useRouter()
   const pathname = usePathname()
 
   const [appState, setAppState] = useState(initialView)
   const [currentModule, setCurrentModule] = useState(forcedModule)
-  const [activeNav, setActiveNav] = useState("dashboard")
+  const [activeNav, setActiveNav] = useState(initialNav)
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -55,9 +57,15 @@ export default function AppShell({
   const [navMode, setNavMode] = useState("sidebar")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [openTabs, setOpenTabs] = useState([
-    { id: "dashboard", pageId: "dashboard", label: "Dashboard", closable: false },
+    {
+      id: initialNav,
+      pageId: initialNav,
+      label:
+        navByModule[forcedModule]?.find((item) => item.id === initialNav)?.label || "Dashboard",
+      closable: false,
+    },
   ])
-  const [activeTabId, setActiveTabId] = useState("dashboard")
+  const [activeTabId, setActiveTabId] = useState(initialNav)
 
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
   const navItems = navByModule[currentModule]
@@ -324,6 +332,7 @@ export default function AppShell({
                     activeNav={activeNav}
                     theme={theme}
                     tenantSlug={tenantSlug}
+                    tenantData={tenantData}
                   />
                 </div>
               </main>
