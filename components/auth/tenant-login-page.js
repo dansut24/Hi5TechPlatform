@@ -22,7 +22,7 @@ function getSafeNext(next, fallback) {
   return next
 }
 
-export default function TenantLoginPage({ theme, tenant, ready = false }) {
+export default function TenantLoginPage({ theme, tenant, branding, ready = false }) {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -59,33 +59,53 @@ export default function TenantLoginPage({ theme, tenant, ready = false }) {
 
   return (
     <div className={`min-h-screen ${theme.app}`}>
-      <div className="flex min-h-screen items-center justify-center px-5 py-10">
+      <div
+        className="flex min-h-screen items-center justify-center px-5 py-10"
+        style={{
+          background:
+            "radial-gradient(circle at top, rgba(var(--tenant-brand-rgb),0.18), transparent 32%)",
+        }}
+      >
         <div className={`w-full max-w-lg rounded-[28px] border p-8 shadow-2xl backdrop-blur-2xl ${theme.card}`}>
           <div className="flex items-center gap-4">
-            {tenant.logo_url ? (
+            {branding?.logoUrl ? (
               <div className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border ${theme.card}`}>
                 <img
-                  src={tenant.logo_url}
+                  src={branding.logoUrl}
                   alt={`${tenant.name} logo`}
                   className="h-full w-full object-contain"
                 />
               </div>
             ) : (
-              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl border text-xl font-semibold ${theme.card}`}>
+              <div
+                className={`flex h-16 w-16 items-center justify-center rounded-2xl border text-xl font-semibold ${theme.card}`}
+                style={{
+                  boxShadow: "0 0 0 1px rgba(var(--tenant-brand-rgb),0.2), 0 0 24px rgba(var(--tenant-brand-rgb),0.16)",
+                }}
+              >
                 {initialsFromName(tenant.name, tenant.slug)}
               </div>
             )}
 
             <div className="min-w-0">
-              <div className="text-3xl font-semibold">Tenant login</div>
+              <div className="text-3xl font-semibold">
+                {branding?.loginHeading || "Tenant login"}
+              </div>
               <div className={`mt-1 text-sm ${theme.muted}`}>
-                Sign in to continue to <span className="font-medium">{tenant.name}</span>.
+                {branding?.loginMessage || `Sign in to continue to ${tenant.name}.`}
               </div>
             </div>
           </div>
 
           {ready ? (
-            <div className="mt-6 rounded-[24px] border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+            <div
+              className="mt-6 rounded-[24px] border p-4 text-sm"
+              style={{
+                borderColor: "rgba(var(--tenant-brand-rgb),0.25)",
+                background: "rgba(var(--tenant-brand-rgb),0.10)",
+                color: "rgb(var(--tenant-brand-rgb))",
+              }}
+            >
               Your account is ready. Sign in to continue to your tenant workspace.
             </div>
           ) : null}
@@ -122,11 +142,10 @@ export default function TenantLoginPage({ theme, tenant, ready = false }) {
             <button
               onClick={submit}
               disabled={loading}
-              className={
-                theme.resolved === "light"
-                  ? "w-full rounded-2xl bg-slate-950 px-4 py-3 text-white disabled:opacity-60"
-                  : "w-full rounded-2xl bg-white px-4 py-3 text-slate-950 disabled:opacity-60"
-              }
+              className="w-full rounded-2xl px-4 py-3 text-sm text-white disabled:opacity-60"
+              style={{
+                background: branding?.brandHex || "#38bdf8",
+              }}
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
