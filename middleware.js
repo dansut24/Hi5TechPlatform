@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
+function isPublicRoute(pathname) {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/redirect") ||
+    pathname.startsWith("/trial") ||
+    pathname.startsWith("/setup")
+  ) {
+    return true
+  }
+
+  if (/^\/tenant\/[^/]+\/login(?:\/.*)?$/.test(pathname)) {
+    return true
+  }
+
+  if (/^\/tenant\/[^/]+\/set-password(?:\/.*)?$/.test(pathname)) {
+    return true
+  }
+
+  return false
+}
+
 const protectedPrefixes = [
   "/itsm",
   "/control",
@@ -16,6 +38,11 @@ const protectedPrefixes = [
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl
+
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next()
+  }
+
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix))
 
   if (!isProtected) {
@@ -37,9 +64,9 @@ export async function middleware(request) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options)
-          )
+          })
         },
       },
     }
@@ -60,6 +87,11 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
+    "/",
+    "/login/:path*",
+    "/redirect/:path*",
+    "/trial/:path*",
+    "/setup/:path*",
     "/itsm/:path*",
     "/control/:path*",
     "/selfservice/:path*",
