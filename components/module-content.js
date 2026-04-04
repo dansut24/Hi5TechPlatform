@@ -479,7 +479,36 @@ export default function ModuleContent({ moduleId, activeNav, theme }) {
 
   if (moduleId === "control") return <GenericWorkspace theme={theme} title="Control workspace" subtitle="Devices, monitoring, remote tools, jobs, and patching." items={["Device overview", "Remote tools", "Patch compliance", "Alert queue"]} icon={Monitor} />
   if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
-  if (moduleId === "admin") return <GenericWorkspace theme={theme} title="Admin console" subtitle="Tenants, users, security, branding, and configuration." items={["Tenants", "Users", "Security policies", "Branding"]} icon={Shield} />
+
+  if (moduleId === "admin") {
+    if (activeNav === "branding") {
+      return (
+        <GenericWorkspace
+          theme={theme}
+          title="Branding"
+          subtitle="Tenant branding settings are loaded on the dedicated branding page."
+          items={[
+            "Logo",
+            "Brand colours",
+            "Login heading",
+            "Login message",
+          ]}
+          icon={Shield}
+        />
+      )
+    }
+
+    return (
+      <GenericWorkspace
+        theme={theme}
+        title="Admin console"
+        subtitle="Tenants, users, security, branding, and configuration."
+        items={["Tenants", "Users", "Security policies", "Branding"]}
+        icon={Shield}
+      />
+    )
+  }
+
   if (moduleId === "analytics") return <GenericWorkspace theme={theme} title="Analytics" subtitle="KPIs, trends, and forecasting." items={["MTTR", "CSAT", "SLA", "Capacity"]} icon={BarChart3} />
   return <GenericWorkspace theme={theme} title="Automation Hub" subtitle="Workflows, triggers, and recent runs." items={["VIP escalation", "Onboarding flow", "Patch reminder", "Access approval"]} icon={Workflow} />
 }
