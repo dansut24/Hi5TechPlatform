@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
 import { signOut } from "@/lib/supabase/auth"
-import { tenantDashboardPath, tenantLoginPath, tenantModulePath } from "@/lib/tenant/paths"
+import { tenantDashboardPath, tenantLoginPath, tenantModulePath, tenantPath } from "@/lib/tenant/paths"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
@@ -21,6 +21,16 @@ const moduleRouteMap = {
   "/admin": "admin",
   "/analytics": "analytics",
   "/automation": "automation",
+}
+
+function getRouteForNav({ tenantSlug, currentModule, pageId }) {
+  if (!tenantSlug) return null
+
+  if (currentModule === "admin") {
+    if (pageId === "branding") return tenantPath(tenantSlug, "/admin/branding")
+  }
+
+  return null
 }
 
 export default function AppShell({
@@ -88,8 +98,19 @@ export default function AppShell({
         { id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false },
       ])
       setActiveTabId(firstPage.id)
+      return
     }
-  }, [pathname])
+
+    if (tenantSlug && pathname === `/tenant/${tenantSlug}/admin/branding`) {
+      setAppState("app")
+      setCurrentModule("admin")
+      setActiveNav("branding")
+      setOpenTabs([
+        { id: "branding", pageId: "branding", label: "Branding", closable: false },
+      ])
+      setActiveTabId("branding")
+    }
+  }, [pathname, tenantSlug])
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined
@@ -158,7 +179,15 @@ export default function AppShell({
   const activateTab = (tabId) => {
     setActiveTabId(tabId)
     const tab = openTabs.find((t) => t.id === tabId)
-    if (tab) setActiveNav(tab.pageId)
+    if (tab) {
+      setActiveNav(tab.pageId)
+      const navRoute = getRouteForNav({
+        tenantSlug,
+        currentModule,
+        pageId: tab.pageId,
+      })
+      if (navRoute) router.push(navRoute)
+    }
   }
 
   const closeTab = (tabId) => {
@@ -175,6 +204,20 @@ export default function AppShell({
   }
 
   const switchPage = (pageId, label) => {
+    const navRoute = getRouteForNav({
+      tenantSlug,
+      currentModule,
+      pageId,
+    })
+
+    if (navRoute) {
+      setActiveNav(pageId)
+      setOpenTabs([{ id: pageId, pageId, label: label || pageId, closable: false }])
+      setActiveTabId(pageId)
+      router.push(navRoute)
+      return
+    }
+
     addNewTab(pageId, label || navItems.find((n) => n.id === pageId)?.label || pageId)
   }
 
