@@ -5,5 +5,5 @@ export default async function TenantDashboardPage({ params }) {
   const { slug } = await params
   await requireTenantAccess(slug)
 
-  return <AppShell initialView="modules" />
+  return <AppShell initialView="modules" tenantSlug={slug} />
 }
