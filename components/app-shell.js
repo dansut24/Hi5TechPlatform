@@ -118,15 +118,16 @@ export default function AppShell({
 
   const tenantBasePath = tenantSlug ? `/tenant/${tenantSlug}` : ""
 
-  const routeByModule = {
-    itsm: tenantSlug ? `${tenantBasePath}/itsm` : "/itsm",
-    control: tenantSlug ? `${tenantBasePath}/control` : "/control",
-    selfservice: tenantSlug ? `${tenantBasePath}/selfservice` : "/selfservice",
-    admin: tenantSlug ? `${tenantBasePath}/admin` : "/admin",
-    analytics: tenantSlug ? `${tenantBasePath}/analytics` : "/analytics",
-    automation: tenantSlug ? `${tenantBasePath}/automation` : "/automation",
-  }
+  import { tenantModulePath, tenantPath } from "@/lib/tenant/paths"
 
+const routeByModule = {
+  itsm: tenantModulePath(tenantSlug, "itsm"),
+  control: tenantModulePath(tenantSlug, "control"),
+  selfservice: tenantModulePath(tenantSlug, "selfservice"),
+  admin: tenantModulePath(tenantSlug, "admin"),
+  analytics: tenantModulePath(tenantSlug, "analytics"),
+  automation: tenantModulePath(tenantSlug, "automation"),
+}
   const openModule = (moduleId) => {
     setCurrentModule(moduleId)
     const firstPage = navByModule[moduleId][0]
