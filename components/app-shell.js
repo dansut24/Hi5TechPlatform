@@ -27,6 +27,8 @@ export default function AppShell({
   initialView = "app",
   forcedModule = "itsm",
   tenantSlug = null,
+  tenantName = "",
+  branding = null,
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -204,13 +206,15 @@ export default function AppShell({
       />
 
       {appState === "modules" && (
-        <ModuleSelector
-          user={user}
-          onEnterModule={openModule}
-          theme={theme}
-          tenantSlug={tenantSlug}
-        />
-      )}
+  <ModuleSelector
+    user={user}
+    onEnterModule={openModule}
+    theme={theme}
+    tenantSlug={tenantSlug}
+    branding={branding}
+    tenantName={tenantName}
+  />
+)}
 
       {appState === "app" && (
         <>
