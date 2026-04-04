@@ -5,6 +5,32 @@ function getSiteUrl(request) {
   return process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
 }
 
+function initialsFromName(name, email) {
+  const source = name?.trim() || email?.trim() || "User"
+  const parts = source.split(/\s+/).filter(Boolean)
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("") || "U"
+}
+
+async function ensureProfile(admin, { userId, email, fullName }) {
+  const { error } = await admin
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        initials: initialsFromName(fullName, email),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    )
+
+  if (error) throw error
+}
+
 export async function GET(request, context) {
   try {
     const admin = getSupabaseAdminClient()
@@ -68,6 +94,13 @@ export async function GET(request, context) {
         throw new Error("Failed to generate invite link")
       }
 
+      // IMPORTANT: profile must exist before created_user_id can reference it
+      await ensureProfile(admin, {
+        userId: authUserId,
+        email: signup.superuser_email,
+        fullName: signup.full_name,
+      })
+
       const { error: updateError } = await admin
         .from("trial_signups")
         .update({
@@ -81,6 +114,13 @@ export async function GET(request, context) {
 
       return NextResponse.redirect(actionLink)
     }
+
+    // Existing user path: make sure profile still exists before reuse
+    await ensureProfile(admin, {
+      userId: authUserId,
+      email: signup.superuser_email,
+      fullName: signup.full_name,
+    })
 
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
