@@ -115,7 +115,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
         throw new Error(finalizeJson.error || "Failed to finalize workspace")
       }
 
-      router.replace(`/tenant/${slug}`)
+      router.replace(`/tenant/${slug}/dashboard`)
     } catch (err) {
       setError(err.message || "Failed to set password")
     } finally {
