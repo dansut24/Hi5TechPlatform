@@ -1,82 +1,56 @@
 "use client"
 
-import { useMemo } from "react"
 import { useRouter } from "next/navigation"
-import {
-  ArrowRight,
-  BarChart3,
-  Blocks,
-  Cpu,
-  Grid3X3,
-  Shield,
-  Sparkles,
-  UserCircle2,
-  Wrench,
-} from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import { modules } from "@/data/mock-data"
-import { tenantDashboardPath, tenantModulePath } from "@/lib/tenant/paths"
 import { cn } from "@/components/shared-ui"
+import { tenantModulePath } from "@/lib/tenant/paths"
 
-const iconMap = {
-  itsm: Blocks,
-  control: Cpu,
-  selfservice: UserCircle2,
-  admin: Shield,
-  analytics: BarChart3,
-  automation: Wrench,
+function Pill({ children, theme }) {
+  return (
+    <div
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs",
+        theme.card,
+        theme.muted
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
-const accentMap = {
-  itsm: {
-    bg: "from-cyan-500/20 via-sky-500/10 to-transparent",
-    bar: "from-cyan-400 via-sky-400 to-blue-400",
-  },
-  control: {
-    bg: "from-violet-500/20 via-fuchsia-500/10 to-transparent",
-    bar: "from-violet-400 via-fuchsia-400 to-pink-400",
-  },
-  selfservice: {
-    bg: "from-emerald-500/20 via-teal-500/10 to-transparent",
-    bar: "from-emerald-400 via-teal-400 to-cyan-400",
-  },
-  admin: {
-    bg: "from-amber-500/20 via-orange-500/10 to-transparent",
-    bar: "from-amber-400 via-orange-400 to-yellow-400",
-  },
-  analytics: {
-    bg: "from-blue-500/20 via-indigo-500/10 to-transparent",
-    bar: "from-blue-400 via-indigo-400 to-violet-400",
-  },
-  automation: {
-    bg: "from-pink-500/20 via-rose-500/10 to-transparent",
-    bar: "from-pink-400 via-rose-400 to-orange-400",
-  },
+function ShellCard({ children, theme, className = "" }) {
+  return (
+    <div
+      className={cn(
+        "rounded-[28px] border shadow-2xl backdrop-blur-2xl",
+        theme.card,
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
-function initialsFromUser(user) {
-  if (user?.initials) return user.initials
-  const source = user?.name?.trim() || "User"
-  const parts = source.split(/\s+/).filter(Boolean)
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("") || "U"
+// 🎨 colour bar mapping (same as before but cleaner)
+const moduleColors = {
+  itsm: "bg-gradient-to-r from-cyan-400 to-sky-400",
+  control: "bg-gradient-to-r from-violet-400 to-fuchsia-400",
+  selfservice: "bg-gradient-to-r from-emerald-400 to-teal-400",
+  admin: "bg-gradient-to-r from-amber-400 to-orange-400",
+  analytics: "bg-gradient-to-r from-blue-400 to-indigo-400",
+  automation: "bg-gradient-to-r from-pink-400 to-rose-400",
 }
 
 export default function ModuleSelector({
   user,
   onEnterModule,
   theme,
-  tenantSlug = null,
+  tenantSlug,
 }) {
   const router = useRouter()
-
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) return "Good morning"
-    if (hour < 18) return "Good afternoon"
-    return "Good evening"
-  }, [])
 
   const openModule = (moduleId) => {
     if (typeof onEnterModule === "function") {
@@ -88,145 +62,114 @@ export default function ModuleSelector({
   }
 
   return (
-    <div className={`min-h-screen ${theme.app}`}>
-      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-        <div className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
-          <div className={cn("rounded-[32px] border p-6 shadow-2xl backdrop-blur-2xl lg:p-8", theme.card)}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-4">
-                <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border text-sm font-semibold", theme.card)}>
-                  {initialsFromUser(user)}
+    <div className="min-h-screen px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <ShellCard theme={theme} className="mb-8 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-2xl border text-sm font-semibold",
+                    theme.card
+                  )}
+                >
+                  {user.initials}
                 </div>
-
-                <div className="min-w-0">
+                <div>
                   <div className={cn("text-sm", theme.muted)}>
-                    {greeting}
+                    Welcome back
                   </div>
-                  <div className="truncate text-3xl font-semibold tracking-tight">
-                    {user?.name || "Welcome back"}
-                  </div>
-                  <div className={cn("mt-1 text-sm", theme.muted)}>
-                    Pick a workspace module to continue.
+                  <div className="text-2xl font-semibold tracking-tight">
+                    {user.name}
                   </div>
                 </div>
               </div>
 
-              <a
-                href={tenantDashboardPath(tenantSlug)}
-                className={cn("hidden rounded-2xl border px-4 py-2 text-sm transition md:inline-flex", theme.card, theme.hover)}
-              >
-                Refresh
-              </a>
+              <p className={cn("mt-4 max-w-2xl text-sm", theme.muted)}>
+                Choose a module. Each workspace is scoped by tenant access,
+                role, and feature permissions.
+              </p>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {modules.map((module) => {
-                const Icon = iconMap[module.id] || Grid3X3
-                const accent = accentMap[module.id] || {
-                  bg: "from-cyan-500/20 via-sky-500/10 to-transparent",
-                  bar: "from-cyan-400 via-sky-400 to-blue-400",
-                }
+            <div className="flex flex-wrap gap-2">
+              <Pill theme={theme}>
+                Tenant: {tenantSlug || "Hi5Tech"}
+              </Pill>
+              <Pill theme={theme}>Role: {user.role}</Pill>
+              <Pill theme={theme}>Environment: Production</Pill>
+            </div>
+          </div>
+        </ShellCard>
 
-                return (
-                  <button
-                    key={module.id}
-                    onClick={() => openModule(module.id)}
+        {/* Modules */}
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {modules.map((module) => {
+            const Icon = module.icon
+
+            return (
+              <button
+                key={module.id}
+                onClick={() => openModule(module.id)}
+                className="group text-left"
+              >
+                <ShellCard
+                  theme={theme}
+                  className="h-full overflow-hidden transition hover:scale-[1.01]"
+                >
+                  {/* ✅ coloured highlight bar */}
+                  <div
                     className={cn(
-                      "group relative overflow-hidden rounded-[28px] border p-5 text-left shadow-xl transition",
-                      theme.card,
-                      theme.hover
+                      "h-1.5 w-full",
+                      moduleColors[module.id] || "bg-slate-400"
                     )}
-                  >
-                    <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br opacity-100", accent.bg)} />
+                  />
 
-                    <div className="relative">
-                      <div className={cn("mb-4 h-1.5 w-24 rounded-full bg-gradient-to-r shadow-[0_0_18px_rgba(255,255,255,0.12)]", accent.bar)} />
-
-                      <div className="flex items-start justify-between gap-4">
-                        <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl border backdrop-blur-xl", theme.card)}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-
-                        <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl border opacity-70 transition group-hover:translate-x-0.5 group-hover:opacity-100", theme.card)}>
-                          <ArrowRight className="h-4 w-4" />
-                        </div>
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div
+                        className={cn(
+                          "flex h-14 w-14 items-center justify-center rounded-2xl border",
+                          theme.card
+                        )}
+                      >
+                        <Icon className="h-6 w-6" />
                       </div>
 
-                      <div className="mt-5 text-xl font-semibold tracking-tight">
-                        {module.title}
-                      </div>
-
-                      <div className={cn("mt-2 text-sm leading-6", theme.muted)}>
-                        {module.description}
-                      </div>
-
-                      <div className="mt-5 flex items-center gap-2 text-xs uppercase tracking-[0.16em]">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        <span>Open module</span>
+                      <div
+                        className={cn(
+                          "inline-flex rounded-full border px-2.5 py-1 text-xs",
+                          theme.card,
+                          theme.muted
+                        )}
+                      >
+                        {module.badge}
                       </div>
                     </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
 
-          <div className="grid gap-6">
-            <div className={cn("rounded-[32px] border p-6 shadow-2xl backdrop-blur-2xl", theme.card)}>
-              <div className="text-lg font-semibold">Workspace summary</div>
-              <div className={cn("mt-2 text-sm", theme.muted)}>
-                Your tenant workspace is ready and routing is now tenant-aware.
-              </div>
+                    <div className="mt-5 text-2xl font-semibold tracking-tight">
+                      {module.title}
+                    </div>
 
-              <div className="mt-6 grid gap-3">
-                <div className={cn("rounded-2xl border p-4", theme.card)}>
-                  <div className={cn("text-xs uppercase tracking-[0.16em]", theme.muted2)}>
-                    Tenant
-                  </div>
-                  <div className="mt-2 text-lg font-semibold">
-                    {tenantSlug || "Default workspace"}
-                  </div>
-                </div>
+                    <div className={cn("mt-2 text-sm", theme.muted)}>
+                      {module.description}
+                    </div>
 
-                <div className={cn("rounded-2xl border p-4", theme.card)}>
-                  <div className={cn("text-xs uppercase tracking-[0.16em]", theme.muted2)}>
-                    Modules
+                    <div
+                      className={cn(
+                        "mt-6 flex items-center justify-between text-sm",
+                        theme.muted
+                      )}
+                    >
+                      <span>Open module</span>
+                      <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </div>
                   </div>
-                  <div className="mt-2 text-lg font-semibold">
-                    {modules.length}
-                  </div>
-                </div>
-
-                <div className={cn("rounded-2xl border p-4", theme.card)}>
-                  <div className={cn("text-xs uppercase tracking-[0.16em]", theme.muted2)}>
-                    Access
-                  </div>
-                  <div className="mt-2 text-lg font-semibold">
-                    {user?.role || "User"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className={cn("rounded-[32px] border p-6 shadow-2xl backdrop-blur-2xl", theme.card)}>
-              <div className="text-lg font-semibold">Quick start</div>
-              <div className={cn("mt-2 text-sm", theme.muted)}>
-                Recommended next steps for a new tenant workspace.
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {[
-                  "Open ITSM to review incidents and requests",
-                  "Check Control for device visibility and actions",
-                  "Use Admin to review branding, users, and groups",
-                ].map((item) => (
-                  <div key={item} className={cn("rounded-2xl border p-4 text-sm", theme.card)}>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+                </ShellCard>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
