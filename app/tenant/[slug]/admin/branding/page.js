@@ -1,24 +1,31 @@
+import AppShell from "@/components/app-shell"
 import { requireTenantAccess } from "@/lib/tenant/require-tenant-access"
-import BrandingSettings from "@/components/admin/branding-settings"
+import { getTenantBranding } from "@/lib/tenant/branding"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 
 export default async function BrandingPage({ params }) {
-  const { slug } = params
-
-  await requireTenantAccess(slug)
+  const { slug } = await params
+  const { tenant } = await requireTenantAccess(slug)
 
   const admin = getSupabaseAdminClient()
 
-  const { data: tenant } = await admin
+  const { data: tenantRow } = await admin
     .from("tenants")
-    .select("*")
+    .select("id, name, slug, logo_url, brand_hex, brand_dark_hex, login_heading, login_message")
     .eq("slug", slug)
-    .single()
+    .maybeSingle()
+
+  const branding = getTenantBranding(tenantRow || tenant)
 
   return (
-    <BrandingSettings
-      tenant={tenant}
+    <AppShell
+      initialView="app"
+      forcedModule="admin"
+      initialNav="branding"
       tenantSlug={slug}
+      tenantName={tenantRow?.name || tenant?.name || slug}
+      branding={branding}
+      tenantData={tenantRow || tenant}
     />
   )
 }
