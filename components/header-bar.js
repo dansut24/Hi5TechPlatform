@@ -1,56 +1,126 @@
 "use client"
 
+import { useMemo, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { Bell, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
-export function NotificationBell({ theme, mobile = false }) {
+function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
+  const activeItem = navItems.find((item) => item.id === activeNav) || navItems[0]
+
+  const breadcrumbs = useMemo(() => {
+    const items = [currentModuleTitle]
+    if (activeItem?.label) items.push(activeItem.label)
+    return items
+  }, [currentModuleTitle, activeItem])
+
   return (
-    <button
-      className={cn(
-        "flex items-center justify-center rounded-[16px] transition",
-        mobile ? "h-9 w-9 lg:h-10 lg:w-10" : "h-10 w-10",
-        theme.hover
-      )}
-      aria-label="Notifications"
-    >
-      <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
-        <path d="M10 20a2 2 0 0 0 4 0" />
-      </svg>
-    </button>
+    <div className="min-w-0">
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[13px] sm:text-sm">
+        {breadcrumbs.map((item, index) => (
+          <div key={`${item}-${index}`} className="flex min-w-0 items-center gap-1.5">
+            {index > 0 ? <span className={cn("shrink-0 opacity-50", theme.muted2)}>/</span> : null}
+            <span
+              className={cn(
+                "truncate",
+                index === breadcrumbs.length - 1 ? "font-medium" : theme.muted
+              )}
+            >
+              {item}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
-export default function HeaderBar({ theme, currentModuleTitle, branding, tenantName }) {
-  return (
-    <header className={cn("sticky top-0 z-30 border-b backdrop-blur-xl", theme.header, theme.line)}>
-      <div
-        className="px-5 py-4 lg:px-8"
-        style={{
-          background: branding?.brandHex
-            ? "linear-gradient(180deg, rgba(var(--tenant-brand-rgb),0.10), rgba(var(--tenant-brand-rgb),0.02))"
-            : undefined,
-        }}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className={cn("text-xs uppercase tracking-[0.16em]", theme.muted2)}>
-              {tenantName || "Workspace"}
-            </div>
-            <div className="truncate text-2xl font-semibold tracking-tight">
-              {currentModuleTitle}
-            </div>
-          </div>
+function NotificationBell({ theme, mobile = false }) {
+  const [open, setOpen] = useState(false)
 
-          <div
-            className={cn("hidden rounded-full border px-3 py-1.5 text-xs md:inline-flex", theme.card, theme.muted)}
-            style={{
-              borderColor: branding?.brandHex ? "rgba(var(--tenant-brand-rgb),0.18)" : undefined,
-            }}
+  const notifications = [
+    { title: "P1 incident assigned", detail: "INC-10492 moved to Network", time: "2m" },
+    { title: "CAB approval pending", detail: "2 changes awaiting approval", time: "14m" },
+    { title: "Patch compliance improved", detail: "Control workspace now at 91.4%", time: "1h" },
+  ]
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "relative flex items-center justify-center rounded-xl border transition",
+          mobile ? "h-9 w-9 lg:h-10 lg:w-10" : "h-8 w-8 lg:h-9 lg:w-9",
+          theme.card,
+          theme.hover
+        )}
+      >
+        <Bell className={mobile ? "h-4 w-4 lg:h-4.5 lg:w-4.5" : "h-3.5 w-3.5 lg:h-4 lg:w-4"} />
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400" />
+      </button>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            className={cn(
+              mobile
+                ? "absolute bottom-11 left-1/2 z-[100] w-[300px] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-3xl border p-3 shadow-2xl shadow-black/40"
+                : "absolute right-0 top-11 z-[100] w-[320px] rounded-3xl border p-3 shadow-2xl shadow-black/40 lg:top-12",
+              theme.panel
+            )}
           >
-            Tenant branded workspace
-          </div>
+            <div className="mb-2 px-2 text-sm font-medium">Notifications</div>
+            <div className="space-y-2">
+              {notifications.map((item) => (
+                <div key={item.title} className={cn("rounded-2xl border p-3", theme.subCard, theme.line)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium">{item.title}</div>
+                      <div className={cn("mt-1 text-xs", theme.muted)}>{item.detail}</div>
+                    </div>
+                    <div className={cn("text-[11px]", theme.muted2)}>{item.time}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+export { NotificationBell }
+
+export default function HeaderBar({
+  theme,
+  currentModuleTitle,
+  navItems,
+  activeNav,
+}) {
+  return (
+    <div
+      className={cn("relative z-50 border-b backdrop-blur-xl", theme.header)}
+      style={{ height: "var(--header-height)" }}
+    >
+      <div className="flex h-full items-center gap-3 px-4 py-2 lg:px-6 lg:py-3">
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9", theme.card)}>
+          <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+        </div>
+
+        <div className="min-w-0">
+          <HeaderBreadcrumbs
+            currentModuleTitle={currentModuleTitle}
+            navItems={navItems}
+            activeNav={activeNav}
+            theme={theme}
+          />
         </div>
       </div>
-    </header>
+    </div>
   )
 }
