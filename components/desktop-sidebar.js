@@ -29,6 +29,7 @@ function SidebarButton({
   onClick,
   theme,
   danger = false,
+  branding = null,
 }) {
   return (
     <div className="group relative">
@@ -43,6 +44,14 @@ function SidebarButton({
               ? theme.selected
               : theme.hover
         )}
+        style={
+          selected && branding?.brandHex
+            ? {
+                boxShadow: "0 0 0 1px rgba(var(--tenant-brand-rgb),0.16), 0 0 24px rgba(var(--tenant-brand-rgb),0.10)",
+                background: "rgba(var(--tenant-brand-rgb),0.10)",
+              }
+            : undefined
+        }
       >
         <span className="flex min-w-0 items-center gap-3">
           <Icon className="h-5 w-5 shrink-0" />
@@ -83,6 +92,8 @@ export default function DesktopSidebar({
   setCollapsed,
   theme,
   tenantSlug,
+  branding,
+  tenantName,
 }) {
   return (
     <aside
@@ -91,7 +102,51 @@ export default function DesktopSidebar({
         theme.header,
         collapsed ? "lg:w-[84px]" : "lg:w-[280px]"
       )}
+      style={{
+        boxShadow: branding?.brandHex
+          ? "inset -1px 0 0 rgba(var(--tenant-brand-rgb),0.10)"
+          : undefined,
+      }}
     >
+      <div
+        className="mx-3 mt-3 rounded-[24px] border p-3"
+        style={{
+          background: branding?.brandHex
+            ? "linear-gradient(135deg, rgba(var(--tenant-brand-rgb),0.16), rgba(var(--tenant-brand-rgb),0.05))"
+            : undefined,
+          borderColor: branding?.brandHex ? "rgba(var(--tenant-brand-rgb),0.18)" : undefined,
+        }}
+      >
+        <div className="flex items-center gap-3">
+          {branding?.logoUrl ? (
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border", theme.card)}>
+              <img src={branding.logoUrl} alt={`${tenantName || tenantSlug || "Tenant"} logo`} className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div
+              className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold", theme.card)}
+              style={{
+                boxShadow: branding?.brandHex
+                  ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.14), 0 0 18px rgba(var(--tenant-brand-rgb),0.10)"
+                  : undefined,
+              }}
+            >
+              {user.initials}
+            </div>
+          )}
+          {!collapsed ? (
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">
+                {tenantName || tenantSlug || "Tenant workspace"}
+              </div>
+              <div className={cn("truncate text-xs", theme.muted)}>
+                {tenantSlug || "workspace"}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <div className={cn("mb-2 px-2 text-[11px] uppercase tracking-[0.16em]", theme.muted2)}>
           {!collapsed ? "Current module" : ""}
@@ -107,6 +162,7 @@ export default function DesktopSidebar({
               collapsed={collapsed}
               onClick={() => onSwitchPage(item.id, item.label)}
               theme={theme}
+              branding={branding}
             />
           ))}
         </div>
@@ -125,6 +181,7 @@ export default function DesktopSidebar({
                 collapsed={collapsed}
                 onClick={onClick}
                 theme={theme}
+                branding={branding}
               />
             )
           })}
@@ -136,6 +193,7 @@ export default function DesktopSidebar({
             onClick={onLogout}
             theme={theme}
             danger
+            branding={branding}
           />
         </div>
 
