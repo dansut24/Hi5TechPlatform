@@ -27,12 +27,30 @@ const iconMap = {
 }
 
 const accentMap = {
-  itsm: "from-cyan-500/20 via-sky-500/10 to-transparent",
-  control: "from-violet-500/20 via-fuchsia-500/10 to-transparent",
-  selfservice: "from-emerald-500/20 via-teal-500/10 to-transparent",
-  admin: "from-amber-500/20 via-orange-500/10 to-transparent",
-  analytics: "from-blue-500/20 via-indigo-500/10 to-transparent",
-  automation: "from-pink-500/20 via-rose-500/10 to-transparent",
+  itsm: {
+    bg: "from-cyan-500/20 via-sky-500/10 to-transparent",
+    bar: "from-cyan-400 via-sky-400 to-blue-400",
+  },
+  control: {
+    bg: "from-violet-500/20 via-fuchsia-500/10 to-transparent",
+    bar: "from-violet-400 via-fuchsia-400 to-pink-400",
+  },
+  selfservice: {
+    bg: "from-emerald-500/20 via-teal-500/10 to-transparent",
+    bar: "from-emerald-400 via-teal-400 to-cyan-400",
+  },
+  admin: {
+    bg: "from-amber-500/20 via-orange-500/10 to-transparent",
+    bar: "from-amber-400 via-orange-400 to-yellow-400",
+  },
+  analytics: {
+    bg: "from-blue-500/20 via-indigo-500/10 to-transparent",
+    bar: "from-blue-400 via-indigo-400 to-violet-400",
+  },
+  automation: {
+    bg: "from-pink-500/20 via-rose-500/10 to-transparent",
+    bar: "from-pink-400 via-rose-400 to-orange-400",
+  },
 }
 
 function initialsFromUser(user) {
@@ -104,7 +122,10 @@ export default function ModuleSelector({
             <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {modules.map((module) => {
                 const Icon = iconMap[module.id] || Grid3X3
-                const accent = accentMap[module.id] || "from-cyan-500/20 via-sky-500/10 to-transparent"
+                const accent = accentMap[module.id] || {
+                  bg: "from-cyan-500/20 via-sky-500/10 to-transparent",
+                  bar: "from-cyan-400 via-sky-400 to-blue-400",
+                }
 
                 return (
                   <button
@@ -116,8 +137,11 @@ export default function ModuleSelector({
                       theme.hover
                     )}
                   >
-                    <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br opacity-100", accent)} />
+                    <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br opacity-100", accent.bg)} />
+
                     <div className="relative">
+                      <div className={cn("mb-4 h-1.5 w-24 rounded-full bg-gradient-to-r shadow-[0_0_18px_rgba(255,255,255,0.12)]", accent.bar)} />
+
                       <div className="flex items-start justify-between gap-4">
                         <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl border backdrop-blur-xl", theme.card)}>
                           <Icon className="h-5 w-5" />
