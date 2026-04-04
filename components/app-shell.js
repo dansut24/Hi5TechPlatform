@@ -195,94 +195,123 @@ export default function AppShell({
     navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
 
   return (
-    <div className={`min-h-screen w-full transition-colors duration-300 ${theme.app}`}>
-      <GlobalSearchModal
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        query={searchQuery}
-        setQuery={setSearchQuery}
-        currentModuleTitle={currentModuleTitle}
-        theme={theme}
+    <div
+      className={`min-h-screen w-full transition-colors duration-300 ${theme.app}`}
+      style={branding?.cssVars || {}}
+    >
+      <div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background: branding?.brandHex
+            ? "radial-gradient(circle at top left, rgba(var(--tenant-brand-rgb),0.18), transparent 28%), radial-gradient(circle at top right, rgba(var(--tenant-brand-rgb),0.10), transparent 24%)"
+            : undefined,
+        }}
       />
 
-      {appState === "modules" && (
-  <ModuleSelector
-    user={user}
-    onEnterModule={openModule}
-    theme={theme}
-    tenantSlug={tenantSlug}
-    branding={branding}
-    tenantName={tenantName}
-  />
-)}
+      <div className="relative z-10">
+        <GlobalSearchModal
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          currentModuleTitle={currentModuleTitle}
+          theme={theme}
+        />
 
-      {appState === "app" && (
-        <>
-          {navMode === "sidebar" ? (
-            <DesktopSidebar
-              user={user}
+        {appState === "modules" && (
+          <ModuleSelector
+            user={user}
+            onEnterModule={openModule}
+            theme={theme}
+            tenantSlug={tenantSlug}
+            branding={branding}
+            tenantName={tenantName}
+          />
+        )}
+
+        {appState === "app" && (
+          <>
+            {navMode === "sidebar" ? (
+              <DesktopSidebar
+                user={user}
+                navItems={navItems}
+                activeNav={activeNav}
+                onSwitchPage={switchPage}
+                onGoModules={goToModules}
+                onLogout={goToLogin}
+                collapsed={sidebarCollapsed}
+                setCollapsed={setSidebarCollapsed}
+                theme={theme}
+                tenantSlug={tenantSlug}
+                branding={branding}
+                tenantName={tenantName}
+              />
+            ) : null}
+
+            <div className={desktopContentOffset}>
+              <HeaderBar
+                theme={theme}
+                currentModuleTitle={currentModuleTitle}
+                navItems={navItems}
+                activeNav={activeNav}
+                branding={branding}
+                tenantName={tenantName}
+              />
+              <TabBar
+                openTabs={openTabs}
+                activeTabId={activeTabId}
+                onActivate={activateTab}
+                onClose={closeTab}
+                onAdd={addNewTab}
+                navItems={navItems}
+                currentModuleTitle={currentModuleTitle}
+                theme={theme}
+              />
+              <main className="px-5 pb-28 pt-6 lg:px-8">
+                <div
+                  className="rounded-[30px]"
+                  style={{
+                    boxShadow: branding?.brandHex
+                      ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.06), 0 18px 50px rgba(0,0,0,0.08)"
+                      : undefined,
+                  }}
+                >
+                  <ModuleContent
+                    moduleId={currentModule}
+                    activeNav={activeNav}
+                    theme={theme}
+                    tenantSlug={tenantSlug}
+                  />
+                </div>
+              </main>
+            </div>
+
+            <FloatingMenu
               navItems={navItems}
               activeNav={activeNav}
               onSwitchPage={switchPage}
               onGoModules={goToModules}
               onLogout={goToLogin}
-              collapsed={sidebarCollapsed}
-              setCollapsed={setSidebarCollapsed}
+              menuOpen={menuOpen}
+              setMenuOpen={setMenuOpen}
+              onOpenSearch={() => {
+                setMenuOpen(false)
+                setSearchOpen(true)
+              }}
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+              customTheme={customTheme}
+              setCustomTheme={setCustomTheme}
               theme={theme}
+              navMode={navMode}
+              user={user}
               tenantSlug={tenantSlug}
+              branding={branding}
+              tenantName={tenantName}
             />
-          ) : null}
-
-          <div className={desktopContentOffset}>
-            <HeaderBar
-              theme={theme}
-              currentModuleTitle={currentModuleTitle}
-              navItems={navItems}
-              activeNav={activeNav}
-            />
-            <TabBar
-              openTabs={openTabs}
-              activeTabId={activeTabId}
-              onActivate={activateTab}
-              onClose={closeTab}
-              onAdd={addNewTab}
-              navItems={navItems}
-              currentModuleTitle={currentModuleTitle}
-              theme={theme}
-            />
-            <main className="px-5 pb-28 pt-6 lg:px-8">
-              <ModuleContent
-                moduleId={currentModule}
-                activeNav={activeNav}
-                theme={theme}
-                tenantSlug={tenantSlug}
-              />
-            </main>
-          </div>
-
-          <FloatingMenu
-            navItems={navItems}
-            activeNav={activeNav}
-            onSwitchPage={switchPage}
-            onGoModules={goToModules}
-            onLogout={goToLogin}
-            menuOpen={menuOpen}
-            setMenuOpen={setMenuOpen}
-            onOpenSearch={() => {
-              setMenuOpen(false)
-              setSearchOpen(true)
-            }}
-            themeMode={themeMode}
-            setThemeMode={setThemeMode}
-            customTheme={customTheme}
-            setCustomTheme={setCustomTheme}
-            theme={theme}
-            navMode={navMode}
-            user={user}
-            tenantSlug={tenantSlug}
-          />
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
