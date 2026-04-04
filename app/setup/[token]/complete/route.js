@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 
+function getSiteUrl(request) {
+  return process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
+}
+
 export async function GET(request, context) {
   try {
     const admin = getSupabaseAdminClient()
     const { token } = await context.params
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
+    const siteUrl = getSiteUrl(request)
 
     const { data: signup, error: signupError } = await admin
       .from("trial_signups")
@@ -35,16 +39,17 @@ export async function GET(request, context) {
       return NextResponse.redirect(new URL(`/tenant/${signup.tenant_slug}/login`, siteUrl))
     }
 
-    const inviteRedirectTo = `${siteUrl}/tenant/${signup.tenant_slug}/set-password?signup=${signup.id}`
+    const redirectTo = `${siteUrl}/tenant/${signup.tenant_slug}/set-password?signup=${signup.id}`
 
-    let inviteData = null
+    let actionLink = null
+    let authUserId = signup.created_user_id || null
 
-    if (!signup.created_user_id) {
-      const result = await admin.auth.admin.generateLink({
+    if (!authUserId) {
+      const { data, error } = await admin.auth.admin.generateLink({
         type: "invite",
         email: signup.superuser_email,
         options: {
-          redirectTo: inviteRedirectTo,
+          redirectTo,
           data: {
             full_name: signup.full_name,
             tenant_slug: signup.tenant_slug,
@@ -54,20 +59,16 @@ export async function GET(request, context) {
         },
       })
 
-      if (result.error) {
-        throw result.error
-      }
+      if (error) throw error
 
-      inviteData = result.data
-
-      const authUserId = inviteData?.user?.id
-      const actionLink = inviteData?.properties?.action_link
+      authUserId = data?.user?.id || null
+      actionLink = data?.properties?.action_link || null
 
       if (!authUserId || !actionLink) {
-        throw new Error("Failed to generate owner invite link")
+        throw new Error("Failed to generate invite link")
       }
 
-      await admin
+      const { error: updateError } = await admin
         .from("trial_signups")
         .update({
           created_user_id: authUserId,
@@ -76,35 +77,36 @@ export async function GET(request, context) {
         })
         .eq("id", signup.id)
 
+      if (updateError) throw updateError
+
       return NextResponse.redirect(actionLink)
     }
 
-    const result = await admin.auth.admin.generateLink({
+    const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: signup.superuser_email,
       options: {
-        redirectTo: inviteRedirectTo,
+        redirectTo,
       },
     })
 
-    if (result.error) {
-      throw result.error
-    }
+    if (error) throw error
 
-    inviteData = result.data
+    actionLink = data?.properties?.action_link || null
 
-    const actionLink = inviteData?.properties?.action_link
     if (!actionLink) {
-      throw new Error("Failed to regenerate setup link")
+      throw new Error("Failed to regenerate password setup link")
     }
 
-    await admin
+    const { error: updateError } = await admin
       .from("trial_signups")
       .update({
         status: "verified",
         updated_at: new Date().toISOString(),
       })
       .eq("id", signup.id)
+
+    if (updateError) throw updateError
 
     return NextResponse.redirect(actionLink)
   } catch (error) {
