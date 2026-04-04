@@ -107,6 +107,7 @@ export default function FloatingMenu({
   theme,
   navMode,
   user,
+  tenantSlug,
 }) {
   const [isKeyboardLikeOpen, setIsKeyboardLikeOpen] = useState(false)
 
@@ -280,6 +281,11 @@ export default function FloatingMenu({
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">{user.name}</div>
                       <div className={cn("truncate text-xs", theme.muted)}>{user.role}</div>
+                      {tenantSlug ? (
+                        <div className={cn("truncate text-[11px]", theme.muted2)}>
+                          {tenantSlug}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
