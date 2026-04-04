@@ -5,5 +5,5 @@ export default async function TenantItsmPage({ params }) {
   const { slug } = await params
   await requireTenantAccess(slug)
 
-  return <AppShell initialView="app" forcedModule="itsm" />
+  return <AppShell initialView="app" forcedModule="itsm" tenantSlug={slug} />
 }
