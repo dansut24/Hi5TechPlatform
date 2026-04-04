@@ -482,11 +482,15 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
   if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
 
   if (moduleId === "admin") {
-    if (activeNav === "branding") {
-      return (
-        <BrandingSettings tenant={tenantData} tenantSlug={tenantSlug} />
-      )
-    }
+  if (activeNav === "branding") {
+    return (
+      <BrandingSettings
+        tenant={tenantData}
+        tenantSlug={tenantSlug}
+        theme={theme}
+      />
+    )
+  }
 
     return (
       <GenericWorkspace
