@@ -22,6 +22,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
   const [error, setError] = useState("")
 
   const signupId = searchParams.get("signup")
+  const inviteId = searchParams.get("invite")
 
   useEffect(() => {
     let mounted = true
@@ -75,7 +76,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
     try {
       setError("")
 
-      if (!signupId) {
+      if (!signupId && !inviteId) {
         setError("Missing setup reference")
         return
       }
@@ -101,18 +102,36 @@ export default function TenantSetPasswordPage({ theme, slug }) {
 
       if (updateError) throw updateError
 
-      const finalizeRes = await fetch("/api/trial-signups/finalize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ signupId }),
-      })
+      if (signupId) {
+        const finalizeRes = await fetch("/api/trial-signups/finalize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ signupId }),
+        })
 
-      const finalizeJson = await finalizeRes.json()
+        const finalizeJson = await finalizeRes.json()
 
-      if (!finalizeRes.ok) {
-        throw new Error(finalizeJson.error || "Failed to finalize workspace")
+        if (!finalizeRes.ok) {
+          throw new Error(finalizeJson.error || "Failed to finalize workspace")
+        }
+      }
+
+      if (inviteId) {
+        const finalizeInviteRes = await fetch("/api/tenant-invites/finalize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ inviteId }),
+        })
+
+        const finalizeInviteJson = await finalizeInviteRes.json()
+
+        if (!finalizeInviteRes.ok) {
+          throw new Error(finalizeInviteJson.error || "Failed to accept invite")
+        }
       }
 
       router.replace(`/tenant/${slug}/dashboard`)
@@ -129,7 +148,7 @@ export default function TenantSetPasswordPage({ theme, slug }) {
         <div className={`w-full max-w-lg rounded-[28px] border p-8 shadow-2xl backdrop-blur-2xl ${theme.card}`}>
           <div className="text-3xl font-semibold">Set your password</div>
           <div className={`mt-2 text-sm ${theme.muted}`}>
-            Finish setting up your superuser account for <span className="font-medium">{slug}</span>.
+            Finish setting up your account for <span className="font-medium">{slug}</span>.
           </div>
 
           <div className="mt-6 space-y-4">
