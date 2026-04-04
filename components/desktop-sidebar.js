@@ -82,6 +82,7 @@ export default function DesktopSidebar({
   collapsed,
   setCollapsed,
   theme,
+  tenantSlug,
 }) {
   return (
     <aside
@@ -153,6 +154,11 @@ export default function DesktopSidebar({
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{user.name}</div>
                 <div className={cn("truncate text-xs", theme.muted)}>{user.role}</div>
+                {tenantSlug ? (
+                  <div className={cn("truncate text-[11px]", theme.muted2)}>
+                    {tenantSlug}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
