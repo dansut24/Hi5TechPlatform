@@ -25,6 +25,7 @@ import {
   Line,
 } from "recharts"
 import { cn } from "@/components/shared-ui"
+import BrandingSettings from "@/components/admin/branding-settings"
 
 const serviceVolume = [
   { name: "Mon", incidents: 38, requests: 24, changes: 6 },
@@ -464,7 +465,7 @@ function GenericWorkspace({ title, subtitle, items, icon: Icon, theme }) {
   )
 }
 
-export default function ModuleContent({ moduleId, activeNav, theme }) {
+export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, tenantData }) {
   if (moduleId === "itsm") {
     if (activeNav === "dashboard") return <ITSMDashboard theme={theme} />
     if (activeNav === "incidents") return <ITSMIncidents theme={theme} />
@@ -483,18 +484,7 @@ export default function ModuleContent({ moduleId, activeNav, theme }) {
   if (moduleId === "admin") {
     if (activeNav === "branding") {
       return (
-        <GenericWorkspace
-          theme={theme}
-          title="Branding"
-          subtitle="Tenant branding settings are loaded on the dedicated branding page."
-          items={[
-            "Logo",
-            "Brand colours",
-            "Login heading",
-            "Login message",
-          ]}
-          icon={Shield}
-        />
+        <BrandingSettings tenant={tenantData} tenantSlug={tenantSlug} />
       )
     }
 
