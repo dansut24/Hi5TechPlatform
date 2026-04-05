@@ -27,18 +27,8 @@ import {
 import { cn } from "@/components/shared-ui"
 import BrandingSettings from "@/components/admin/branding-settings"
 import UsersManagement from "@/components/admin/users-management"
-import GroupsManagement from "@/components/admin/groups-management";
-import ModulePermissions from "@/components/admin/module-permissions";
-
-const serviceVolume = [
-  { name: "Mon", incidents: 38, requests: 24, changes: 6 },
-  { name: "Tue", incidents: 42, requests: 26, changes: 8 },
-  { name: "Wed", incidents: 51, requests: 29, changes: 7 },
-  { name: "Thu", incidents: 47, requests: 22, changes: 10 },
-  { name: "Fri", incidents: 58, requests: 31, changes: 12 },
-  { name: "Sat", incidents: 24, requests: 14, changes: 3 },
-  { name: "Sun", incidents: 18, requests: 9, changes: 2 },
-]
+import GroupsManagement from "@/components/admin/groups-management"
+import ModulePermissions from "@/components/admin/module-permissions"
 
 const trendData = [
   { name: "W1", value: 92 },
@@ -57,7 +47,11 @@ const knowledgeArticles = [
 ]
 
 function ShellCard({ children, theme, className = "" }) {
-  return <div className={cn("rounded-[28px] border shadow-2xl backdrop-blur-2xl", theme.card, className)}>{children}</div>
+  return (
+    <div className={cn("rounded-[28px] border shadow-2xl backdrop-blur-2xl", theme.card, className)}>
+      {children}
+    </div>
+  )
 }
 
 function SectionTitle({ title, subtitle, action, theme }) {
@@ -91,7 +85,15 @@ function ActionButton({ children, theme, secondary = false, ...props }) {
 }
 
 function InputShell({ theme, value, onChange, placeholder, type = "text" }) {
-  return <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)} />
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+    />
+  )
 }
 
 function ClientOnlyChart({ children }) {
@@ -108,16 +110,23 @@ function ClientOnlyChart({ children }) {
   return <div className="h-[280px] w-full min-w-0">{children}</div>
 }
 
-function ChartCard({ theme }) {
+function ChartCard({ theme, byPriority = [] }) {
+  const chartData = byPriority.map((row) => ({
+    name: row.priority,
+    count: row.count,
+  }))
+
   return (
     <ShellCard theme={theme} className="p-5">
       <div className="mb-4">
-        <div className="text-lg font-semibold">Service volume</div>
-        <div className={cn("text-sm", theme.muted)}>Incident, request, and change trend over the last 7 days.</div>
+        <div className="text-lg font-semibold">Incident priority mix</div>
+        <div className={cn("text-sm", theme.muted)}>
+          Live tenant-scoped incident breakdown by priority.
+        </div>
       </div>
       <ClientOnlyChart>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={serviceVolume}>
+          <BarChart data={chartData}>
             <CartesianGrid stroke="rgba(148,163,184,0.18)" vertical={false} />
             <XAxis dataKey="name" stroke="currentColor" opacity={0.45} />
             <YAxis stroke="currentColor" opacity={0.45} />
@@ -128,9 +137,7 @@ function ChartCard({ theme }) {
                 borderRadius: 16,
               }}
             />
-            <Bar dataKey="incidents" radius={[8, 8, 0, 0]} fill="rgba(56,189,248,0.9)" />
-            <Bar dataKey="requests" radius={[8, 8, 0, 0]} fill="rgba(168,85,247,0.85)" />
-            <Bar dataKey="changes" radius={[8, 8, 0, 0]} fill="rgba(34,197,94,0.85)" />
+            <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="rgba(56,189,248,0.9)" />
           </BarChart>
         </ResponsiveContainer>
       </ClientOnlyChart>
@@ -166,7 +173,54 @@ function TrendCard({ theme }) {
   )
 }
 
-function ITSMDashboard({ theme }) {
+function ITSMDashboard({ theme, tenantSlug }) {
+  const [summary, setSummary] = useState({
+    openIncidents: 0,
+    breachRisk: 0,
+    pendingChanges: 0,
+    healthyAssets: "—",
+    byPriority: [],
+    recentIncidents: [],
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+        setLoading(true)
+        setError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/itsm/summary`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load ITSM summary")
+        if (alive) {
+          setSummary(
+            json.summary || {
+              openIncidents: 0,
+              breachRisk: 0,
+              pendingChanges: 0,
+              healthyAssets: "—",
+              byPriority: [],
+              recentIncidents: [],
+            }
+          )
+        }
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load ITSM summary")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug])
+
   return (
     <div className="space-y-6">
       <SectionTitle
@@ -186,23 +240,61 @@ function ITSMDashboard({ theme }) {
           </div>
         }
       />
+
+      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {["Open Incidents", "SLA Breach Risk", "Pending Changes", "Healthy Assets"].map((label, i) => (
+        {[
+          ["Open Incidents", summary.openIncidents],
+          ["SLA Breach Risk", summary.breachRisk],
+          ["Pending Changes", summary.pendingChanges],
+          ["Healthy Assets", summary.healthyAssets],
+        ].map(([label, value]) => (
           <ShellCard key={label} theme={theme} className="p-5">
             <div className={cn("text-sm", theme.muted)}>{label}</div>
-            <div className="mt-2 text-3xl font-semibold">{[184, 23, 41, "96.2%"][i]}</div>
+            <div className="mt-2 text-3xl font-semibold">
+              {loading ? "…" : value}
+            </div>
           </ShellCard>
         ))}
       </div>
+
       <div className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
-        <ChartCard theme={theme} />
+        <ChartCard theme={theme} byPriority={summary.byPriority} />
         <TrendCard theme={theme} />
       </div>
+
+      <ShellCard theme={theme} className="p-5">
+        <div className="mb-4 text-lg font-semibold">Recent incidents</div>
+        {loading ? (
+          <div className="text-sm">Loading recent incidents...</div>
+        ) : summary.recentIncidents.length === 0 ? (
+          <div className="text-sm">No incidents found.</div>
+        ) : (
+          <div className="space-y-3">
+            {summary.recentIncidents.map((incident) => (
+              <div key={incident.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">{incident.number}</div>
+                    <div className={cn("mt-1 text-sm", theme.muted)}>
+                      {incident.short_description}
+                    </div>
+                  </div>
+                  <div className={cn("text-xs uppercase", theme.muted2)}>
+                    {incident.priority}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ShellCard>
     </div>
   )
 }
 
-function ITSMIncidents({ theme }) {
+function ITSMIncidents({ theme, tenantSlug }) {
   const [query, setQuery] = useState("")
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -213,9 +305,13 @@ function ITSMIncidents({ theme }) {
 
     async function load() {
       try {
+        if (!tenantSlug) return
         setLoading(true)
         setError("")
-        const res = await fetch("/api/incidents", { cache: "no-store" })
+        const url = query
+          ? `/api/tenant/${tenantSlug}/incidents?q=${encodeURIComponent(query)}`
+          : `/api/tenant/${tenantSlug}/incidents`
+        const res = await fetch(url, { cache: "no-store" })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Failed to load incidents")
         if (alive) setRows(json.incidents || [])
@@ -230,17 +326,7 @@ function ITSMIncidents({ theme }) {
     return () => {
       alive = false
     }
-  }, [])
-
-  const filtered = useMemo(
-    () =>
-      rows.filter((incident) =>
-        `${incident.number} ${incident.short_description} ${incident.priority} ${incident.status}`
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      ),
-    [rows, query]
-  )
+  }, [tenantSlug, query])
 
   return (
     <div className="space-y-6">
@@ -287,10 +373,10 @@ function ITSMIncidents({ theme }) {
           <div className="px-5 py-6 text-sm">Loading incidents...</div>
         ) : error ? (
           <div className="px-5 py-6 text-sm text-rose-400">{error}</div>
-        ) : filtered.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="px-5 py-6 text-sm">No incidents found.</div>
         ) : (
-          filtered.map((item) => (
+          rows.map((item) => (
             <div key={item.id} className={cn("grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
               <div className="font-medium">{item.number}</div>
               <div>{item.short_description}</div>
@@ -305,7 +391,7 @@ function ITSMIncidents({ theme }) {
   )
 }
 
-function IncidentForm({ theme }) {
+function IncidentForm({ theme, tenantSlug }) {
   const [form, setForm] = useState({
     shortDescription: "",
     details: "",
@@ -320,6 +406,11 @@ function IncidentForm({ theme }) {
       setMessage("")
       setError("")
 
+      if (!tenantSlug) {
+        setError("Missing tenant context")
+        return
+      }
+
       if (!form.shortDescription.trim()) {
         setError("Short description is required")
         return
@@ -327,7 +418,7 @@ function IncidentForm({ theme }) {
 
       setSaving(true)
 
-      const res = await fetch("/api/incidents", {
+      const res = await fetch(`/api/tenant/${tenantSlug}/incidents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -470,28 +561,28 @@ function GenericWorkspace({ title, subtitle, items, icon: Icon, theme }) {
 
 export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, tenantData }) {
   if (moduleId === "itsm") {
-    if (activeNav === "dashboard") return <ITSMDashboard theme={theme} />
-    if (activeNav === "incidents") return <ITSMIncidents theme={theme} />
+    if (activeNav === "dashboard") return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} />
+    if (activeNav === "incidents") return <ITSMIncidents theme={theme} tenantSlug={tenantSlug} />
     if (activeNav === "requests") return <ServiceRequestForm theme={theme} />
     if (activeNav === "changes") return <GenericWorkspace theme={theme} title="Change management" subtitle="Plan risk, approvals, implementation windows, and backout plans." items={["CAB schedule", "Approval gates", "Implementation plan", "Backout plan"]} icon={Workflow} />
     if (activeNav === "problems") return <GenericWorkspace theme={theme} title="Problem management" subtitle="Root cause analysis, known errors, and proactive prevention." items={["Known errors", "RCA workbench", "Trend correlation", "Problem backlog"]} icon={AlertTriangle} />
     if (activeNav === "assets") return <GenericWorkspace theme={theme} title="Assets" subtitle="Endpoints, servers, and estate insight." items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]} icon={Monitor} />
     if (activeNav === "knowledge") return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and publish helpful documentation." items={knowledgeArticles} icon={BookOpen} />
     if (activeNav === "reports") return <GenericWorkspace theme={theme} title="Reports" subtitle="Operational reporting and insights." items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]} icon={BarChart3} />
-    return <IncidentForm theme={theme} />
+    return <IncidentForm theme={theme} tenantSlug={tenantSlug} />
   }
 
   if (moduleId === "control") return <GenericWorkspace theme={theme} title="Control workspace" subtitle="Devices, monitoring, remote tools, jobs, and patching." items={["Device overview", "Remote tools", "Patch compliance", "Alert queue"]} icon={Monitor} />
   if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
 
-        if (moduleId === "admin") {
+  if (moduleId === "admin") {
     if (activeNav === "users") {
       return (
         <UsersManagement
           tenantSlug={tenantSlug}
           theme={theme}
         />
-      );
+      )
     }
 
     if (activeNav === "groups") {
@@ -500,7 +591,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
           tenantSlug={tenantSlug}
           theme={theme}
         />
-      );
+      )
     }
 
     if (activeNav === "permissions") {
@@ -509,7 +600,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
           tenantSlug={tenantSlug}
           theme={theme}
         />
-      );
+      )
     }
 
     if (activeNav === "branding") {
@@ -519,7 +610,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
           tenantSlug={tenantSlug}
           theme={theme}
         />
-      );
+      )
     }
 
     return (
@@ -530,7 +621,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
         items={["Users", "Groups", "Permissions", "Branding"]}
         icon={Shield}
       />
-    );
+    )
   }
 
   if (moduleId === "analytics") return <GenericWorkspace theme={theme} title="Analytics" subtitle="KPIs, trends, and forecasting." items={["MTTR", "CSAT", "SLA", "Capacity"]} icon={BarChart3} />
