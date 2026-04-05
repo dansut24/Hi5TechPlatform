@@ -63,6 +63,7 @@ export const navByModule = {
     { id: "security", label: "Security", icon: Shield },
     { id: "branding", label: "Branding", icon: Sparkles },
     { id: "modules", label: "Modules", icon: Grid3X3 },
+    { id: "groups", label: "Groups", icon: Users }
   ],
   analytics: [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
