@@ -41,6 +41,7 @@ export default function AppShell({
   tenantName = "",
   branding = null,
   tenantData = null,
+  allowedModuleIds = [],
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -98,6 +99,11 @@ export default function AppShell({
 
     if (moduleRouteMap[pathname]) {
       const moduleId = moduleRouteMap[pathname]
+
+      if (allowedModuleIds.length && !allowedModuleIds.includes(moduleId)) {
+        return
+      }
+
       const firstPage = navByModule[moduleId][0]
       setAppState("app")
       setCurrentModule(moduleId)
@@ -110,6 +116,10 @@ export default function AppShell({
     }
 
     if (tenantSlug && pathname === `/tenant/${tenantSlug}/admin/branding`) {
+      if (allowedModuleIds.length && !allowedModuleIds.includes("admin")) {
+        return
+      }
+
       setAppState("app")
       setCurrentModule("admin")
       setActiveNav("branding")
@@ -118,7 +128,7 @@ export default function AppShell({
       ])
       setActiveTabId("branding")
     }
-  }, [pathname, tenantSlug])
+  }, [pathname, tenantSlug, allowedModuleIds])
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined
@@ -158,6 +168,10 @@ export default function AppShell({
   }
 
   const openModule = (moduleId) => {
+    if (allowedModuleIds.length && !allowedModuleIds.includes(moduleId)) {
+      return
+    }
+
     setCurrentModule(moduleId)
     const firstPage = navByModule[moduleId][0]
     setOpenTabs([{ id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false }])
@@ -277,6 +291,7 @@ export default function AppShell({
             tenantSlug={tenantSlug}
             branding={branding}
             tenantName={tenantName}
+            allowedModuleIds={allowedModuleIds}
           />
         )}
 
