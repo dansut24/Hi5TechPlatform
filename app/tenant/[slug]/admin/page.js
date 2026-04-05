@@ -1,29 +1,21 @@
 import AppShell from "@/components/app-shell"
-import { requireTenantAccess } from "@/lib/tenant/require-tenant-access"
 import { getTenantBranding } from "@/lib/tenant/branding"
-import { getSupabaseAdminClient } from "@/lib/supabase/admin"
+import { requireTenantModuleAccess } from "@/lib/tenant/module-access"
 
 export default async function TenantAdminPage({ params }) {
   const { slug } = await params
-  const { tenant } = await requireTenantAccess(slug)
-
-  const admin = getSupabaseAdminClient()
-
-  const { data: tenantRow } = await admin
-    .from("tenants")
-    .select("id, name, slug, logo_url, brand_hex, brand_dark_hex, login_heading, login_message")
-    .eq("slug", slug)
-    .maybeSingle()
-
-  const branding = getTenantBranding(tenantRow || tenant)
+  const access = await requireTenantModuleAccess(slug, "admin")
+  const branding = getTenantBranding(access.tenant)
 
   return (
     <AppShell
       initialView="app"
       forcedModule="admin"
       tenantSlug={slug}
-      tenantName={tenantRow?.name || tenant?.name || slug}
+      tenantName={access.tenant?.name || slug}
       branding={branding}
+      tenantData={access.tenant}
+      allowedModuleIds={access.allowedModuleIds}
     />
   )
 }
