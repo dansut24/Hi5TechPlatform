@@ -1,10 +1,10 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 export async function POST(req, { params }) {
-  const { slug } = params
+  const { slug } = await params
   const body = await req.json()
 
-  const supabase = await getSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   const { data: tenant } = await supabase
     .from("tenants")
