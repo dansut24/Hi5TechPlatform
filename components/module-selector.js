@@ -1,7 +1,8 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { ArrowUpRight } from "lucide-react"
+import { useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { AlertTriangle, ArrowUpRight } from "lucide-react"
 import { modules } from "@/data/mock-data"
 import { cn } from "@/components/shared-ui"
 import { tenantModulePath } from "@/lib/tenant/paths"
@@ -43,6 +44,15 @@ const moduleColors = {
   automation: "bg-gradient-to-r from-pink-400 to-rose-400",
 }
 
+const moduleLabels = {
+  itsm: "ITSM",
+  control: "Control",
+  selfservice: "Self Service",
+  admin: "Admin",
+  analytics: "Analytics",
+  automation: "Automation",
+}
+
 export default function ModuleSelector({
   user,
   onEnterModule,
@@ -51,8 +61,15 @@ export default function ModuleSelector({
   allowedModuleIds = [],
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const visibleModules = modules.filter((module) => allowedModuleIds.includes(module.id))
+  const denied = searchParams.get("denied")
+
+  const deniedLabel = useMemo(() => {
+    if (!denied) return ""
+    return moduleLabels[denied] || denied
+  }, [denied])
 
   const openModule = (moduleId) => {
     if (!allowedModuleIds.includes(moduleId)) return
@@ -68,6 +85,25 @@ export default function ModuleSelector({
   return (
     <div className="min-h-screen px-5 py-8 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        {deniedLabel ? (
+          <ShellCard theme={theme} className="mb-6 border-amber-400/20 p-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-amber-300">
+                <AlertTriangle className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-amber-300">
+                  Access denied
+                </div>
+                <div className={cn("mt-1 text-sm", theme.muted)}>
+                  You do not have access to the <span className="font-medium">{deniedLabel}</span> module.
+                  Contact your tenant administrator if you need access.
+                </div>
+              </div>
+            </div>
+          </ShellCard>
+        ) : null}
+
         <ShellCard theme={theme} className="mb-8 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
