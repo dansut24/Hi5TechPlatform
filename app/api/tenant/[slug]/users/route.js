@@ -1,57 +1,19 @@
 import crypto from "node:crypto"
 import { NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { getSupabaseAdminClient } from "@/lib/supabase/admin"
+import { requireTenantApiAccess } from "@/lib/tenant/api-access"
 import { sendMail } from "@/lib/email/smtp"
 import { buildTenantInviteEmail } from "@/lib/email/invite-email"
-
-async function requireTenantAdmin(slug) {
-  const supabase = await createSupabaseServerClient()
-  const admin = getSupabaseAdminClient()
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError) throw userError
-  if (!user) return { error: "Not authenticated", status: 401 }
-
-  const { data: membership, error: membershipError } = await admin
-    .from("memberships")
-    .select("role, tenant_id")
-    .eq("user_id", user.id)
-    .eq("tenants.slug", slug)
-    .select("role, tenant_id, tenants!inner(slug)")
-    .maybeSingle()
-
-  if (membershipError) throw membershipError
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    return { error: "Forbidden", status: 403 }
-  }
-
-  const { data: tenant, error: tenantError } = await admin
-    .from("tenants")
-    .select("id, name, slug")
-    .eq("slug", slug)
-    .single()
-
-  if (tenantError) throw tenantError
-
-  return { user, tenant, admin }
-}
 
 export async function GET(_request, { params }) {
   try {
     const { slug } = await params
-    const access = await requireTenantAdmin(slug)
-    if (access.error) {
+    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
+
+    if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    const { tenant, admin } = access
-
-    const { data: members, error: membersError } = await admin
+    const { data: members, error: membersError } = await access.admin
       .from("memberships")
       .select(`
         id,
@@ -66,23 +28,23 @@ export async function GET(_request, { params }) {
           initials
         )
       `)
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", access.tenant.id)
       .order("created_at", { ascending: true })
 
     if (membersError) throw membersError
 
-    const { data: invites, error: invitesError } = await admin
+    const { data: invites, error: invitesError } = await access.admin
       .from("tenant_invites")
       .select("*")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", access.tenant.id)
       .order("created_at", { ascending: false })
 
     if (invitesError) throw invitesError
 
-    const { data: groups, error: groupsError } = await admin
+    const { data: groups, error: groupsError } = await access.admin
       .from("groups")
       .select("id, name")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", access.tenant.id)
       .order("name", { ascending: true })
 
     if (groupsError) throw groupsError
@@ -92,7 +54,7 @@ export async function GET(_request, { params }) {
       members: members || [],
       invites: invites || [],
       groups: groups || [],
-      tenant,
+      tenant: access.tenant,
     })
   } catch (error) {
     return NextResponse.json(
@@ -105,14 +67,13 @@ export async function GET(_request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { slug } = await params
-    const access = await requireTenantAdmin(slug)
-    if (access.error) {
+    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
+
+    if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    const { tenant, admin, user } = access
     const body = await request.json()
-
     const email = body.email?.trim()?.toLowerCase()
     const role = body.role?.trim() || "technician"
     const groupIds = Array.isArray(body.groupIds) ? body.groupIds : []
@@ -124,10 +85,10 @@ export async function POST(request, { params }) {
     const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    const { data: existingInvite } = await admin
+    const { data: existingInvite } = await access.admin
       .from("tenant_invites")
       .select("id")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", access.tenant.id)
       .eq("email", email)
       .eq("status", "pending")
       .maybeSingle()
@@ -136,20 +97,20 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "A pending invite already exists for this email" }, { status: 400 })
     }
 
-    const { data: inviterProfile } = await admin
+    const { data: inviterProfile } = await access.admin
       .from("profiles")
       .select("full_name, email")
-      .eq("id", user.id)
+      .eq("id", access.user.id)
       .maybeSingle()
 
-    const { data: invite, error: inviteError } = await admin
+    const { data: invite, error: inviteError } = await access.admin
       .from("tenant_invites")
       .insert({
-        tenant_id: tenant.id,
+        tenant_id: access.tenant.id,
         email,
         role,
         invite_token: token,
-        invited_by: user.id,
+        invited_by: access.user.id,
         group_ids: groupIds,
         expires_at: expiresAt,
         status: "pending",
@@ -163,8 +124,8 @@ export async function POST(request, { params }) {
     const inviteUrl = `${siteUrl}/invite/${token}`
 
     const mail = buildTenantInviteEmail({
-      tenantName: tenant.name,
-      tenantSlug: tenant.slug,
+      tenantName: access.tenant.name,
+      tenantSlug: access.tenant.slug,
       inviteUrl,
       invitedByName: inviterProfile?.full_name || inviterProfile?.email || "An administrator",
       role,
