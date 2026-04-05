@@ -636,6 +636,95 @@ function ServiceRequestForm({ theme, tenantSlug }) {
   )
 }
 
+function ControlWorkspace({ theme, tenantSlug }) {
+  const [devices, setDevices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+        setLoading(true)
+        setError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/devices`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load devices")
+        if (alive) setDevices(json.devices || [])
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load devices")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug])
+
+  const onlineCount = devices.filter((d) => (d.status || "").toLowerCase() === "online").length
+  const offlineCount = devices.filter((d) => (d.status || "").toLowerCase() !== "online").length
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title="Control workspace"
+        subtitle="Devices, monitoring, remote tools, jobs, and patching."
+        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />Add Device</ActionButton>}
+      />
+
+      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <ShellCard theme={theme} className="p-5">
+          <div className={cn("text-sm", theme.muted)}>Total devices</div>
+          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : devices.length}</div>
+        </ShellCard>
+        <ShellCard theme={theme} className="p-5">
+          <div className={cn("text-sm", theme.muted)}>Online</div>
+          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : onlineCount}</div>
+        </ShellCard>
+        <ShellCard theme={theme} className="p-5">
+          <div className={cn("text-sm", theme.muted)}>Offline</div>
+          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : offlineCount}</div>
+        </ShellCard>
+      </div>
+
+      <ShellCard theme={theme} className="overflow-hidden">
+        <div className={cn("grid grid-cols-[1.2fr,1fr,120px,160px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide", theme.line, theme.muted2)}>
+          <div>Hostname</div>
+          <div>OS</div>
+          <div>Status</div>
+          <div>Last Seen</div>
+        </div>
+
+        {loading ? (
+          <div className="px-5 py-6 text-sm">Loading devices...</div>
+        ) : devices.length === 0 ? (
+          <div className="px-5 py-6 text-sm">No devices found.</div>
+        ) : (
+          devices.map((device) => (
+            <div
+              key={device.id}
+              className={cn("grid grid-cols-[1.2fr,1fr,120px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}
+            >
+              <div className="font-medium">{device.hostname}</div>
+              <div>{device.os_name || "Unknown OS"}</div>
+              <div className="capitalize">{device.status}</div>
+              <div>{device.last_seen_at ? new Date(device.last_seen_at).toLocaleDateString() : "—"}</div>
+            </div>
+          ))
+        )}
+      </ShellCard>
+    </div>
+  )
+}
+
 function GenericWorkspace({ title, subtitle, items, icon: Icon, theme }) {
   return (
     <div className="space-y-6">
@@ -661,7 +750,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
     return <IncidentForm theme={theme} tenantSlug={tenantSlug} />
   }
 
-  if (moduleId === "control") return <GenericWorkspace theme={theme} title="Control workspace" subtitle="Devices, monitoring, remote tools, jobs, and patching." items={["Device overview", "Remote tools", "Patch compliance", "Alert queue"]} icon={Monitor} />
+  if (moduleId === "control") return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
   if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
 
   if (moduleId === "admin") {
