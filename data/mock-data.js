@@ -19,6 +19,7 @@ import {
   Users,
   Workflow,
   Wrench,
+  Lock,
 } from "lucide-react"
 
 export const modules = [
