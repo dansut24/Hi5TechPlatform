@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { NextResponse } from "next/server"
+import { requireTenantApiAccess } from "@/lib/tenant/api-access"
 
 const AVAILABLE_MODULES = [
   { key: "itsm", label: "ITSM" },
@@ -9,55 +8,18 @@ const AVAILABLE_MODULES = [
   { key: "admin", label: "Admin" },
   { key: "analytics", label: "Analytics" },
   { key: "automation", label: "Automation" },
-];
-
-async function requireTenantAdmin(slug) {
-  const supabase = await createSupabaseServerClient();
-  const admin = getSupabaseAdminClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) throw userError;
-  if (!user) return { error: "Not authenticated", status: 401 };
-
-  const { data: tenant, error: tenantError } = await admin
-    .from("tenants")
-    .select("id, name, slug")
-    .eq("slug", slug)
-    .single();
-
-  if (tenantError) throw tenantError;
-
-  const { data: membership, error: membershipError } = await admin
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenant.id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (membershipError) throw membershipError;
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    return { error: "Forbidden", status: 403 };
-  }
-
-  return { tenant, admin };
-}
+]
 
 export async function GET(_request, { params }) {
   try {
-    const { slug } = await params;
-    const access = await requireTenantAdmin(slug);
+    const { slug } = await params
+    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
-    if (access.error) {
-      return NextResponse.json({ error: access.error }, { status: access.status });
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    const { tenant, admin } = access;
-
-    const { data: members, error: membersError } = await admin
+    const { data: members, error: membersError } = await access.admin
       .from("memberships")
       .select(`
         user_id,
@@ -70,162 +32,160 @@ export async function GET(_request, { params }) {
           initials
         )
       `)
-      .eq("tenant_id", tenant.id)
-      .order("created_at", { ascending: true });
+      .eq("tenant_id", access.tenant.id)
+      .order("created_at", { ascending: true })
 
-    if (membersError) throw membersError;
+    if (membersError) throw membersError
 
-    const { data: groups, error: groupsError } = await admin
+    const { data: groups, error: groupsError } = await access.admin
       .from("groups")
       .select(`
         id,
         name,
         description
       `)
-      .eq("tenant_id", tenant.id)
-      .order("name", { ascending: true });
+      .eq("tenant_id", access.tenant.id)
+      .order("name", { ascending: true })
 
-    if (groupsError) throw groupsError;
+    if (groupsError) throw groupsError
 
-    const { data: userAssignments, error: userAssignmentsError } = await admin
+    const { data: userAssignments, error: userAssignmentsError } = await access.admin
       .from("module_assignments")
       .select("user_id, module_key")
-      .eq("tenant_id", tenant.id);
+      .eq("tenant_id", access.tenant.id)
 
-    if (userAssignmentsError) throw userAssignmentsError;
+    if (userAssignmentsError) throw userAssignmentsError
 
-    const { data: groupAssignments, error: groupAssignmentsError } = await admin
+    const { data: groupAssignments, error: groupAssignmentsError } = await access.admin
       .from("group_module_assignments")
       .select("group_id, module_key")
-      .eq("tenant_id", tenant.id);
+      .eq("tenant_id", access.tenant.id)
 
-    if (groupAssignmentsError) throw groupAssignmentsError;
+    if (groupAssignmentsError) throw groupAssignmentsError
 
     return NextResponse.json({
       ok: true,
-      tenant,
+      tenant: access.tenant,
       modules: AVAILABLE_MODULES,
       members: members || [],
       groups: groups || [],
       userAssignments: userAssignments || [],
       groupAssignments: groupAssignments || [],
-    });
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "Failed to load permissions" },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function POST(request, { params }) {
   try {
-    const { slug } = await params;
-    const access = await requireTenantAdmin(slug);
+    const { slug } = await params
+    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
-    if (access.error) {
-      return NextResponse.json({ error: access.error }, { status: access.status });
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    const { tenant, admin } = access;
-    const body = await request.json();
-
-    const targetType = body.targetType;
-    const targetId = body.targetId;
-    const moduleKeys = Array.isArray(body.moduleKeys) ? body.moduleKeys : [];
+    const body = await request.json()
+    const targetType = body.targetType
+    const targetId = body.targetId
+    const moduleKeys = Array.isArray(body.moduleKeys) ? body.moduleKeys : []
 
     if (!["user", "group"].includes(targetType)) {
-      return NextResponse.json({ error: "Invalid target type" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid target type" }, { status: 400 })
     }
 
     if (!targetId) {
-      return NextResponse.json({ error: "Missing target id" }, { status: 400 });
+      return NextResponse.json({ error: "Missing target id" }, { status: 400 })
     }
 
-    const validKeys = new Set(AVAILABLE_MODULES.map((m) => m.key));
-    const filteredModuleKeys = [...new Set(moduleKeys)].filter((key) => validKeys.has(key));
+    const validKeys = new Set(AVAILABLE_MODULES.map((m) => m.key))
+    const filteredModuleKeys = [...new Set(moduleKeys)].filter((key) => validKeys.has(key))
 
     if (targetType === "user") {
-      const { data: memberCheck, error: memberCheckError } = await admin
+      const { data: memberCheck, error: memberCheckError } = await access.admin
         .from("memberships")
         .select("user_id")
-        .eq("tenant_id", tenant.id)
+        .eq("tenant_id", access.tenant.id)
         .eq("user_id", targetId)
-        .maybeSingle();
+        .maybeSingle()
 
-      if (memberCheckError) throw memberCheckError;
+      if (memberCheckError) throw memberCheckError
       if (!memberCheck) {
-        return NextResponse.json({ error: "User is not a tenant member" }, { status: 400 });
+        return NextResponse.json({ error: "User is not a tenant member" }, { status: 400 })
       }
 
-      const { error: deleteError } = await admin
+      const { error: deleteError } = await access.admin
         .from("module_assignments")
         .delete()
-        .eq("tenant_id", tenant.id)
-        .eq("user_id", targetId);
+        .eq("tenant_id", access.tenant.id)
+        .eq("user_id", targetId)
 
-      if (deleteError) throw deleteError;
+      if (deleteError) throw deleteError
 
       if (filteredModuleKeys.length) {
         const rows = filteredModuleKeys.map((moduleKey) => ({
-          tenant_id: tenant.id,
+          tenant_id: access.tenant.id,
           user_id: targetId,
           module_key: moduleKey,
-        }));
+        }))
 
-        const { error: insertError } = await admin
+        const { error: insertError } = await access.admin
           .from("module_assignments")
-          .insert(rows);
+          .insert(rows)
 
-        if (insertError) throw insertError;
+        if (insertError) throw insertError
       }
 
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true })
     }
 
     if (targetType === "group") {
-      const { data: groupCheck, error: groupCheckError } = await admin
+      const { data: groupCheck, error: groupCheckError } = await access.admin
         .from("groups")
         .select("id")
-        .eq("tenant_id", tenant.id)
+        .eq("tenant_id", access.tenant.id)
         .eq("id", targetId)
-        .maybeSingle();
+        .maybeSingle()
 
-      if (groupCheckError) throw groupCheckError;
+      if (groupCheckError) throw groupCheckError
       if (!groupCheck) {
-        return NextResponse.json({ error: "Group not found" }, { status: 400 });
+        return NextResponse.json({ error: "Group not found" }, { status: 400 })
       }
 
-      const { error: deleteError } = await admin
+      const { error: deleteError } = await access.admin
         .from("group_module_assignments")
         .delete()
-        .eq("tenant_id", tenant.id)
-        .eq("group_id", targetId);
+        .eq("tenant_id", access.tenant.id)
+        .eq("group_id", targetId)
 
-      if (deleteError) throw deleteError;
+      if (deleteError) throw deleteError
 
       if (filteredModuleKeys.length) {
         const rows = filteredModuleKeys.map((moduleKey) => ({
-          tenant_id: tenant.id,
+          tenant_id: access.tenant.id,
           group_id: targetId,
           module_key: moduleKey,
-        }));
+        }))
 
-        const { error: insertError } = await admin
+        const { error: insertError } = await access.admin
           .from("group_module_assignments")
-          .insert(rows);
+          .insert(rows)
 
-        if (insertError) throw insertError;
+        if (insertError) throw insertError
       }
 
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true })
     }
 
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "Failed to save permissions" },
       { status: 500 }
-    );
+    )
   }
 }
