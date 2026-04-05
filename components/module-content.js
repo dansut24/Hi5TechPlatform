@@ -28,6 +28,7 @@ import { cn } from "@/components/shared-ui"
 import BrandingSettings from "@/components/admin/branding-settings"
 import UsersManagement from "@/components/admin/users-management"
 import GroupsManagement from "@/components/admin/groups-management";
+import ModulePermissions from "@/components/admin/module-permissions";
 
 const serviceVolume = [
   { name: "Mon", incidents: 38, requests: 24, changes: 6 },
@@ -483,7 +484,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
   if (moduleId === "control") return <GenericWorkspace theme={theme} title="Control workspace" subtitle="Devices, monitoring, remote tools, jobs, and patching." items={["Device overview", "Remote tools", "Patch compliance", "Alert queue"]} icon={Monitor} />
   if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
 
-      if (moduleId === "admin") {
+        if (moduleId === "admin") {
     if (activeNav === "users") {
       return (
         <UsersManagement
@@ -496,6 +497,15 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
     if (activeNav === "groups") {
       return (
         <GroupsManagement
+          tenantSlug={tenantSlug}
+          theme={theme}
+        />
+      );
+    }
+
+    if (activeNav === "permissions") {
+      return (
+        <ModulePermissions
           tenantSlug={tenantSlug}
           theme={theme}
         />
@@ -517,7 +527,7 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
         theme={theme}
         title="Admin console"
         subtitle="Tenants, users, security, branding, and configuration."
-        items={["Users", "Groups", "Security policies", "Branding"]}
+        items={["Users", "Groups", "Permissions", "Branding"]}
         icon={Shield}
       />
     );
