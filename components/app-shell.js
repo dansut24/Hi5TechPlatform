@@ -342,12 +342,13 @@ export default function AppShell({
                       : undefined,
                   }}
                 >
-                  <ModuleContent
+                                    <ModuleContent
                     moduleId={currentModule}
                     activeNav={activeNav}
                     theme={theme}
                     tenantSlug={tenantSlug}
                     tenantData={tenantData}
+                    onNavigate={switchPage}
                   />
                 </div>
               </main>
