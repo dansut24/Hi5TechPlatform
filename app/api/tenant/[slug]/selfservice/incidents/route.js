@@ -12,6 +12,7 @@ export async function GET(request, { params }) {
 
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get("q") || "").trim().toLowerCase()
+    const status = (searchParams.get("status") || "").trim().toLowerCase()
 
     const { data, error } = await access.admin
       .from("incidents")
@@ -29,6 +30,12 @@ export async function GET(request, { params }) {
         `${incident.number || ""} ${incident.short_description || ""} ${incident.priority || ""} ${incident.status || ""}`
           .toLowerCase()
           .includes(q)
+      )
+    }
+
+    if (status) {
+      incidents = incidents.filter(
+        (incident) => (incident.status || "").toLowerCase() === status
       )
     }
 
