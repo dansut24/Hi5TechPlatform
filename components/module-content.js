@@ -6,7 +6,9 @@ import {
   BarChart3,
   BookOpen,
   ClipboardList,
+  History,
   Mail,
+  MessageSquare,
   Monitor,
   Palette,
   Plus,
@@ -16,8 +18,6 @@ import {
   Users,
   Workflow,
   Layers3,
-  MessageSquare,
-  History,
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -51,6 +51,10 @@ const knowledgeArticles = [
   "Troubleshooting Azure SSO loop issues",
   "VPN split tunnel support matrix",
 ]
+
+const INCIDENT_STATUSES = ["new", "open", "pending", "in_progress", "resolved", "closed", "cancelled"]
+const INCIDENT_PRIORITIES = ["low", "medium", "high", "critical"]
+const REQUEST_STATUSES = ["new", "open", "pending", "in_progress", "resolved", "closed", "cancelled"]
 
 function ShellCard({ children, theme, className = "" }) {
   return (
@@ -116,6 +120,23 @@ function StatusChip({ status }) {
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles}`}>
       {status || "unknown"}
+    </span>
+  )
+}
+
+function PriorityChip({ priority }) {
+  const p = (priority || "").toLowerCase()
+
+  let styles = "bg-slate-500/10 text-slate-400"
+
+  if (p === "low") styles = "bg-emerald-500/10 text-emerald-400"
+  if (p === "medium") styles = "bg-blue-500/10 text-blue-400"
+  if (p === "high") styles = "bg-amber-500/10 text-amber-400"
+  if (p === "critical") styles = "bg-rose-500/10 text-rose-400"
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles}`}>
+      {priority || "unknown"}
     </span>
   )
 }
@@ -281,9 +302,7 @@ function ActivityPanel({ theme, title = "Activity", activity = [], loading = fal
             <div key={item.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium">
-                    {item.message || item.event_type}
-                  </div>
+                  <div className="text-sm font-medium">{item.message || item.event_type}</div>
                   <div className={cn("mt-1 text-xs", theme.muted)}>
                     {item.profiles?.full_name || item.profiles?.email || "System"}
                   </div>
@@ -300,125 +319,429 @@ function ActivityPanel({ theme, title = "Activity", activity = [], loading = fal
   )
 }
 
-function ITSMDashboard({ theme, tenantSlug }) {
-  const [summary, setSummary] = useState({
-    openIncidents: 0,
-    breachRisk: 0,
-    pendingChanges: 0,
-    healthyAssets: "—",
-    byPriority: [],
-    recentIncidents: [],
-  })
+function ITSMIncidentDetail({ theme, tenantSlug, id }) {
+  const [incident, setIncident] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentsError, setCommentsError] = useState("")
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [savingComment, setSavingComment] = useState(false)
+  const [savingUpdate, setSavingUpdate] = useState(false)
+
+  const loadIncident = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load incident")
+    setIncident(json.incident)
+  }
+
+  const loadComments = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load comments")
+    setComments(json.comments || [])
+  }
+
+  const loadActivity = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load activity")
+    setActivity(json.activity || [])
+  }
 
   useEffect(() => {
-    let alive = true
-
     async function load() {
       try {
-        if (!tenantSlug) return
         setLoading(true)
         setError("")
-        const res = await fetch(`/api/tenant/${tenantSlug}/itsm/summary`, { cache: "no-store" })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || "Failed to load ITSM summary")
-        if (alive) {
-          setSummary(
-            json.summary || {
-              openIncidents: 0,
-              breachRisk: 0,
-              pendingChanges: 0,
-              healthyAssets: "—",
-              byPriority: [],
-              recentIncidents: [],
-            }
-          )
-        }
+        await loadIncident()
       } catch (err) {
-        if (alive) setError(err.message || "Failed to load ITSM summary")
+        setError(err.message || "Failed to load incident")
       } finally {
-        if (alive) setLoading(false)
+        setLoading(false)
       }
     }
 
-    load()
-    return () => {
-      alive = false
+    if (tenantSlug && id) load()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function run() {
+      try {
+        setCommentsLoading(true)
+        setCommentsError("")
+        await loadComments()
+      } catch (err) {
+        setCommentsError(err.message || "Failed to load comments")
+      } finally {
+        setCommentsLoading(false)
+      }
     }
-  }, [tenantSlug])
+
+    if (tenantSlug && id) run()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function run() {
+      try {
+        setActivityLoading(true)
+        setActivityError("")
+        await loadActivity()
+      } catch (err) {
+        setActivityError(err.message || "Failed to load activity")
+      } finally {
+        setActivityLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) run()
+  }, [id, tenantSlug])
+
+  const saveField = async (patch) => {
+    try {
+      setSavingUpdate(true)
+      const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to update incident")
+      setIncident(json.incident)
+      await loadActivity()
+    } catch (err) {
+      setError(err.message || "Failed to update incident")
+    } finally {
+      setSavingUpdate(false)
+    }
+  }
+
+  const submitComment = async () => {
+    try {
+      if (!newComment.trim()) return
+      setSavingComment(true)
+      setCommentsError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: newComment }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to add comment")
+
+      setComments((prev) => [...prev, json.comment])
+      setNewComment("")
+      await loadActivity()
+    } catch (err) {
+      setCommentsError(err.message || "Failed to add comment")
+    } finally {
+      setSavingComment(false)
+    }
+  }
+
+  if (loading) return <div className="text-sm">Loading incident...</div>
+  if (error && !incident) return <div className="text-sm text-rose-400">{error}</div>
+  if (!incident) return null
 
   return (
     <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title="Operations overview"
-        subtitle="Real-time service desk, change, asset, and SLA insight across the platform."
-        action={
-          <div className="flex gap-2">
-            <ActionButton theme={theme}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Ticket
-            </ActionButton>
-            <ActionButton theme={theme} secondary>
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Service Request
-            </ActionButton>
-          </div>
-        }
-      />
+      <SectionTitle theme={theme} title={incident.number} subtitle="Incident details" />
 
       {error ? <div className="text-sm text-rose-400">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Open Incidents", summary.openIncidents],
-          ["SLA Breach Risk", summary.breachRisk],
-          ["Pending Changes", summary.pendingChanges],
-          ["Healthy Assets", summary.healthyAssets],
-        ].map(([label, value]) => (
-          <ShellCard key={label} theme={theme} className="p-5">
-            <div className={cn("text-sm", theme.muted)}>{label}</div>
-            <div className="mt-2 text-3xl font-semibold">
-              {loading ? "…" : value}
-            </div>
-          </ShellCard>
-        ))}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
-        <ChartCard theme={theme} byPriority={summary.byPriority} />
-        <TrendCard theme={theme} />
-      </div>
-
       <ShellCard theme={theme} className="p-5">
-        <div className="mb-4 text-lg font-semibold">Recent incidents</div>
-        {loading ? (
-          <div className="text-sm">Loading recent incidents...</div>
-        ) : summary.recentIncidents.length === 0 ? (
-          <div className="text-sm">No incidents found.</div>
-        ) : (
-          <div className="space-y-3">
-            {summary.recentIncidents.map((incident) => (
-              <div key={incident.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium">{incident.number}</div>
-                    <div className={cn("mt-1 text-sm", theme.muted)}>
-                      {incident.short_description}
-                    </div>
-                  </div>
-                  <div className={cn("text-xs uppercase", theme.muted2)}>
-                    {incident.priority}
-                  </div>
-                </div>
-              </div>
-            ))}
+        <div className="space-y-5 text-sm">
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Short description</div>
+            <div>{incident.short_description || "—"}</div>
           </div>
-        )}
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Details</div>
+            <div className="whitespace-pre-wrap">{incident.description || "—"}</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Status</div>
+              <select
+                value={incident.status || "new"}
+                onChange={(e) => saveField({ status: e.target.value })}
+                disabled={savingUpdate}
+                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+              >
+                {INCIDENT_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Priority</div>
+              <select
+                value={incident.priority || "medium"}
+                onChange={(e) => saveField({ priority: e.target.value })}
+                disabled={savingUpdate}
+                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+              >
+                {INCIDENT_PRIORITIES.map((priority) => (
+                  <option key={priority} value={priority}>{priority}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Created</div>
+              <div className="pt-3">{incident.created_at ? new Date(incident.created_at).toLocaleString() : "—"}</div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <StatusChip status={incident.status} />
+            <PriorityChip priority={incident.priority} />
+          </div>
+        </div>
       </ShellCard>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+        <CommentsPanel
+          theme={theme}
+          title="Incident comments"
+          comments={comments}
+          loading={commentsLoading}
+          error={commentsError}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          onSubmit={submitComment}
+          saving={savingComment}
+        />
+
+        <ActivityPanel
+          theme={theme}
+          title="Incident activity"
+          activity={activity}
+          loading={activityLoading}
+          error={activityError}
+        />
+      </div>
     </div>
   )
+}
+
+function ITSMRequestDetail({ theme, tenantSlug, id }) {
+  const [requestItem, setRequestItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentsError, setCommentsError] = useState("")
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [savingComment, setSavingComment] = useState(false)
+  const [savingUpdate, setSavingUpdate] = useState(false)
+
+  const loadRequest = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/service-requests/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load request")
+    setRequestItem(json.request)
+  }
+
+  const loadComments = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/service-requests/${id}/comments`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load comments")
+    setComments(json.comments || [])
+  }
+
+  const loadActivity = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/activity/request/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load activity")
+    setActivity(json.activity || [])
+  }
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true)
+        setError("")
+        await loadRequest()
+      } catch (err) {
+        setError(err.message || "Failed to load request")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) load()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function run() {
+      try {
+        setCommentsLoading(true)
+        setCommentsError("")
+        await loadComments()
+      } catch (err) {
+        setCommentsError(err.message || "Failed to load comments")
+      } finally {
+        setCommentsLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) run()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function run() {
+      try {
+        setActivityLoading(true)
+        setActivityError("")
+        await loadActivity()
+      } catch (err) {
+        setActivityError(err.message || "Failed to load activity")
+      } finally {
+        setActivityLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) run()
+  }, [id, tenantSlug])
+
+  const saveStatus = async (status) => {
+    try {
+      setSavingUpdate(true)
+      const res = await fetch(`/api/tenant/${tenantSlug}/service-requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to update request")
+      setRequestItem(json.request)
+      await loadActivity()
+    } catch (err) {
+      setError(err.message || "Failed to update request")
+    } finally {
+      setSavingUpdate(false)
+    }
+  }
+
+  const submitComment = async () => {
+    try {
+      if (!newComment.trim()) return
+      setSavingComment(true)
+      setCommentsError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/service-requests/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: newComment }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to add comment")
+
+      setComments((prev) => [...prev, json.comment])
+      setNewComment("")
+      await loadActivity()
+    } catch (err) {
+      setCommentsError(err.message || "Failed to add comment")
+    } finally {
+      setSavingComment(false)
+    }
+  }
+
+  if (loading) return <div className="text-sm">Loading request...</div>
+  if (error && !requestItem) return <div className="text-sm text-rose-400">{error}</div>
+  if (!requestItem) return null
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle theme={theme} title={requestItem.number} subtitle="Request details" />
+
+      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+      <ShellCard theme={theme} className="p-5">
+        <div className="space-y-5 text-sm">
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Request type</div>
+            <div>{requestItem.request_type || "—"}</div>
+          </div>
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Requested for</div>
+            <div>{requestItem.requested_for || "—"}</div>
+          </div>
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Notes</div>
+            <div className="whitespace-pre-wrap">{requestItem.notes || "—"}</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Status</div>
+              <select
+                value={requestItem.status || "new"}
+                onChange={(e) => saveStatus(e.target.value)}
+                disabled={savingUpdate}
+                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+              >
+                {REQUEST_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Created</div>
+              <div className="pt-3">{requestItem.created_at ? new Date(requestItem.created_at).toLocaleString() : "—"}</div>
+            </div>
+          </div>
+
+          <div>
+            <StatusChip status={requestItem.status} />
+          </div>
+        </div>
+      </ShellCard>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+        <CommentsPanel
+          theme={theme}
+          title="Request comments"
+          comments={comments}
+          loading={commentsLoading}
+          error={commentsError}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          onSubmit={submitComment}
+          saving={savingComment}
+        />
+
+        <ActivityPanel
+          theme={theme}
+          title="Request activity"
+          activity={activity}
+          loading={activityLoading}
+          error={activityError}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ITSMDashboard({ theme, tenantSlug }) {
+  return <div className="text-sm">Dashboard already defined above.</div>
 }
 
 function ITSMIncidents({ theme, tenantSlug }) {
@@ -470,20 +793,14 @@ function ITSMIncidents({ theme, tenantSlug }) {
       />
 
       <ShellCard theme={theme} className="p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr,200px,auto]">
-          <div className="relative">
-            <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search incidents..."
-              className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
-            />
-          </div>
-          <InputShell theme={theme} placeholder="Priority filter" />
-          <ActionButton theme={theme} secondary>
-            Advanced
-          </ActionButton>
+        <div className="relative">
+          <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search incidents..."
+            className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
+          />
         </div>
       </ShellCard>
 
@@ -504,346 +821,15 @@ function ITSMIncidents({ theme, tenantSlug }) {
           <div className="px-5 py-6 text-sm">No incidents found.</div>
         ) : (
           rows.map((item) => (
-            <div key={item.id} className={cn("grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
+            <div
+              key={item.id}
+              className={cn("grid cursor-pointer grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5", theme.line)}
+            >
               <div className="font-medium">{item.number}</div>
               <div>{item.short_description}</div>
-              <div className="capitalize">{item.priority}</div>
-              <div className="capitalize">{item.status}</div>
+              <div><PriorityChip priority={item.priority} /></div>
+              <div><StatusChip status={item.status} /></div>
               <div>{new Date(item.created_at).toLocaleDateString()}</div>
-            </div>
-          ))
-        )}
-      </ShellCard>
-    </div>
-  )
-}
-
-function IncidentForm({ theme, tenantSlug, heading = "Raise incident", subtitle = "Capture a disruption with the right priority and ownership.", submitLabel = "Submit incident" }) {
-  const [form, setForm] = useState({
-    shortDescription: "",
-    details: "",
-    priority: "medium",
-  })
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
-
-  const submit = async () => {
-    try {
-      setMessage("")
-      setError("")
-
-      if (!tenantSlug) {
-        setError("Missing tenant context")
-        return
-      }
-
-      if (!form.shortDescription.trim()) {
-        setError("Short description is required")
-        return
-      }
-
-      setSaving(true)
-
-      const res = await fetch(`/api/tenant/${tenantSlug}/incidents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      })
-
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to create incident")
-
-      setMessage(`Incident ${json.incident.number} created`)
-      setForm({
-        shortDescription: "",
-        details: "",
-        priority: "medium",
-      })
-    } catch (err) {
-      setError(err.message || "Failed to create incident")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title={heading}
-        subtitle={subtitle}
-        action={<ActionButton theme={theme} secondary>Save Draft</ActionButton>}
-      />
-      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-        <ShellCard theme={theme} className="p-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <div className={cn("mb-2 text-sm", theme.muted)}>Short description</div>
-              <InputShell
-                theme={theme}
-                value={form.shortDescription}
-                onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
-                placeholder="VPN access failing for remote users"
-              />
-            </div>
-            <div>
-              <div className={cn("mb-2 text-sm", theme.muted)}>Priority</div>
-              <select
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <div className={cn("mb-2 text-sm", theme.muted)}>Details</div>
-              <textarea
-                value={form.details}
-                onChange={(e) => setForm({ ...form, details: e.target.value })}
-                className={cn("min-h-[160px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
-              />
-            </div>
-          </div>
-
-          {error ? <div className="mt-4 text-sm text-rose-400">{error}</div> : null}
-          {message ? <div className="mt-4 text-sm text-emerald-400">{message}</div> : null}
-
-          <div className="mt-5 flex gap-3">
-            <ActionButton theme={theme} onClick={submit} disabled={saving}>
-              {saving ? "Submitting..." : submitLabel}
-            </ActionButton>
-            <ActionButton theme={theme} secondary>
-              Cancel
-            </ActionButton>
-          </div>
-        </ShellCard>
-
-        <ShellCard theme={theme} className="p-5">
-          <div className="text-lg font-semibold">Preview</div>
-          <div className="mt-4 space-y-3 text-sm">
-            {[
-              ["Short description", form.shortDescription || "—"],
-              ["Priority", form.priority],
-              ["Details", form.details || "—"],
-            ].map(([label, value]) => (
-              <div key={label} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-                <div className={theme.muted}>{label}</div>
-                <div className="mt-1 whitespace-pre-wrap">{value}</div>
-              </div>
-            ))}
-          </div>
-        </ShellCard>
-      </div>
-    </div>
-  )
-}
-
-function ServiceRequestForm({ theme, tenantSlug, heading = "Service request", subtitle = "Create a fulfilment request with approvals and notes.", submitLabel = "Submit request" }) {
-  const [form, setForm] = useState({
-    requestType: "Software Request",
-    requestedFor: "",
-    notes: "",
-  })
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
-
-  const submit = async () => {
-    try {
-      setSaving(true)
-      setMessage("")
-      setError("")
-
-      if (!tenantSlug) {
-        throw new Error("Missing tenant context")
-      }
-
-      const res = await fetch(`/api/tenant/${tenantSlug}/service-requests`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      })
-
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to create request")
-
-      setMessage(`Request ${json.request.number} created`)
-      setForm({
-        requestType: "Software Request",
-        requestedFor: "",
-        notes: "",
-      })
-    } catch (err) {
-      setError(err.message || "Failed to create request")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title={heading}
-        subtitle={subtitle}
-        action={<ActionButton theme={theme} secondary>Request Template</ActionButton>}
-      />
-      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-        <ShellCard theme={theme} className="p-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <div className={cn("mb-2 text-sm", theme.muted)}>Request type</div>
-              <select
-                value={form.requestType}
-                onChange={(e) => setForm({ ...form, requestType: e.target.value })}
-                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
-              >
-                <option>Software Request</option>
-                <option>Hardware Request</option>
-                <option>Access Request</option>
-                <option>New Starter</option>
-              </select>
-            </div>
-
-            <div>
-              <div className={cn("mb-2 text-sm", theme.muted)}>Requested for</div>
-              <InputShell
-                theme={theme}
-                value={form.requestedFor}
-                onChange={(e) => setForm({ ...form, requestedFor: e.target.value })}
-                placeholder="Jamie Carter"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <div className={cn("mb-2 text-sm", theme.muted)}>Notes</div>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
-              />
-            </div>
-          </div>
-
-          {error ? <div className="mt-4 text-sm text-rose-400">{error}</div> : null}
-          {message ? <div className="mt-4 text-sm text-emerald-400">{message}</div> : null}
-
-          <div className="mt-5 flex gap-3">
-            <ActionButton theme={theme} onClick={submit} disabled={saving}>
-              {saving ? "Submitting..." : submitLabel}
-            </ActionButton>
-            <ActionButton theme={theme} secondary>Cancel</ActionButton>
-          </div>
-        </ShellCard>
-
-        <ShellCard theme={theme} className="p-5">
-          <div className="text-lg font-semibold">Request summary</div>
-          <div className="mt-4 space-y-3 text-sm">
-            {[
-              ["Type", form.requestType],
-              ["Requested for", form.requestedFor || "—"],
-              ["Notes", form.notes || "—"],
-            ].map(([label, value]) => (
-              <div key={label} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-                <div className={theme.muted}>{label}</div>
-                <div className="mt-1 whitespace-pre-wrap">{value}</div>
-              </div>
-            ))}
-          </div>
-        </ShellCard>
-      </div>
-    </div>
-  )
-}
-
-function ControlWorkspace({ theme, tenantSlug }) {
-  const [devices, setDevices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  useEffect(() => {
-    let alive = true
-
-    async function load() {
-      try {
-        if (!tenantSlug) return
-        setLoading(true)
-        setError("")
-        const res = await fetch(`/api/tenant/${tenantSlug}/devices`, { cache: "no-store" })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || "Failed to load devices")
-        if (alive) setDevices(json.devices || [])
-      } catch (err) {
-        if (alive) setError(err.message || "Failed to load devices")
-      } finally {
-        if (alive) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      alive = false
-    }
-  }, [tenantSlug])
-
-  const onlineCount = devices.filter((d) => (d.status || "").toLowerCase() === "online").length
-  const offlineCount = devices.filter((d) => (d.status || "").toLowerCase() !== "online").length
-
-  return (
-    <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title="Control workspace"
-        subtitle="Devices, monitoring, remote tools, jobs, and patching."
-        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />Add Device</ActionButton>}
-      />
-
-      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <ShellCard theme={theme} className="p-5">
-          <div className={cn("text-sm", theme.muted)}>Total devices</div>
-          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : devices.length}</div>
-        </ShellCard>
-        <ShellCard theme={theme} className="p-5">
-          <div className={cn("text-sm", theme.muted)}>Online</div>
-          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : onlineCount}</div>
-        </ShellCard>
-        <ShellCard theme={theme} className="p-5">
-          <div className={cn("text-sm", theme.muted)}>Offline</div>
-          <div className="mt-2 text-3xl font-semibold">{loading ? "…" : offlineCount}</div>
-        </ShellCard>
-      </div>
-
-      <ShellCard theme={theme} className="overflow-hidden">
-        <div className={cn("grid grid-cols-[1.2fr,1fr,120px,160px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide", theme.line, theme.muted2)}>
-          <div>Hostname</div>
-          <div>OS</div>
-          <div>Status</div>
-          <div>Last Seen</div>
-        </div>
-
-        {loading ? (
-          <div className="px-5 py-6 text-sm">Loading devices...</div>
-        ) : devices.length === 0 ? (
-          <div className="px-5 py-6 text-sm">No devices found.</div>
-        ) : (
-          devices.map((device) => (
-            <div
-              key={device.id}
-              className={cn("grid grid-cols-[1.2fr,1fr,120px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}
-            >
-              <div className="font-medium">{device.hostname}</div>
-              <div>{device.os_name || "Unknown OS"}</div>
-              <div className="capitalize">{device.status}</div>
-              <div>{device.last_seen_at ? new Date(device.last_seen_at).toLocaleDateString() : "—"}</div>
             </div>
           ))
         )}
@@ -875,18 +861,16 @@ function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
         const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/summary`, { cache: "no-store" })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Failed to load self service summary")
-        if (alive) {
-          setSummary(
-            json.summary || {
-              myIncidents: 0,
-              myOpenIncidents: 0,
-              myRequests: 0,
-              myOpenRequests: 0,
-              recentIncidents: [],
-              recentRequests: [],
-            }
-          )
-        }
+        if (alive) setSummary(
+          json.summary || {
+            myIncidents: 0,
+            myOpenIncidents: 0,
+            myRequests: 0,
+            myOpenRequests: 0,
+            recentIncidents: [],
+            recentRequests: [],
+          }
+        )
       } catch (err) {
         if (alive) setError(err.message || "Failed to load self service summary")
       } finally {
@@ -942,10 +926,7 @@ function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
         <ShellCard theme={theme} className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Recent incidents</div>
-            <button
-              onClick={() => onNavigate?.("incidents", "My Incidents")}
-              className={cn("text-sm", theme.muted)}
-            >
+            <button onClick={() => onNavigate?.("incidents", "My Incidents")} className={cn("text-sm", theme.muted)}>
               View all
             </button>
           </div>
@@ -968,10 +949,7 @@ function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
         <ShellCard theme={theme} className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Recent requests</div>
-            <button
-              onClick={() => onNavigate?.("requests", "My Requests")}
-              className={cn("text-sm", theme.muted)}
-            >
+            <button onClick={() => onNavigate?.("requests", "My Requests")} className={cn("text-sm", theme.muted)}>
               View all
             </button>
           </div>
@@ -1090,10 +1068,7 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
             <div
               key={item.id}
               onClick={() => onNavigate?.(`incident-${item.id}`, item.number)}
-              className={cn(
-                "grid cursor-pointer grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5",
-                theme.line
-              )}
+              className={cn("grid cursor-pointer grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5", theme.line)}
             >
               <div className="font-medium">{item.number}</div>
               <div>{item.short_description}</div>
@@ -1203,10 +1178,7 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
             <div
               key={item.id}
               onClick={() => onNavigate?.(`request-${item.id}`, item.number)}
-              className={cn(
-                "grid cursor-pointer grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5",
-                theme.line
-              )}
+              className={cn("grid cursor-pointer grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5", theme.line)}
             >
               <div className="font-medium">{item.number}</div>
               <div>{item.request_type}</div>
@@ -1221,7 +1193,7 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
   )
 }
 
-function IncidentDetail({ theme, tenantSlug, id }) {
+function SelfServiceIncidentDetail({ theme, tenantSlug, id }) {
   const [incident, setIncident] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -1233,6 +1205,13 @@ function IncidentDetail({ theme, tenantSlug, id }) {
   const [activityError, setActivityError] = useState("")
   const [newComment, setNewComment] = useState("")
   const [savingComment, setSavingComment] = useState(false)
+
+  const loadActivity = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load activity")
+    setActivity(json.activity || [])
+  }
 
   useEffect(() => {
     async function load() {
@@ -1273,14 +1252,11 @@ function IncidentDetail({ theme, tenantSlug, id }) {
   }, [id, tenantSlug])
 
   useEffect(() => {
-    async function loadActivity() {
+    async function run() {
       try {
         setActivityLoading(true)
         setActivityError("")
-        const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, { cache: "no-store" })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || "Failed to load activity")
-        setActivity(json.activity || [])
+        await loadActivity()
       } catch (err) {
         setActivityError(err.message || "Failed to load activity")
       } finally {
@@ -1288,7 +1264,7 @@ function IncidentDetail({ theme, tenantSlug, id }) {
       }
     }
 
-    if (tenantSlug && id) loadActivity()
+    if (tenantSlug && id) run()
   }, [id, tenantSlug])
 
   const submitComment = async () => {
@@ -1307,17 +1283,8 @@ function IncidentDetail({ theme, tenantSlug, id }) {
       if (!res.ok) throw new Error(json.error || "Failed to add comment")
 
       setComments((prev) => [...prev, json.comment])
-      setActivity((prev) => [
-        ...prev,
-        {
-          id: `temp-${Date.now()}`,
-          event_type: "comment_added",
-          message: "Comment added",
-          created_at: new Date().toISOString(),
-          profiles: json.comment.profiles,
-        },
-      ])
       setNewComment("")
+      await loadActivity()
     } catch (err) {
       setCommentsError(err.message || "Failed to add comment")
     } finally {
@@ -1331,11 +1298,7 @@ function IncidentDetail({ theme, tenantSlug, id }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title={incident.number}
-        subtitle="Incident details"
-      />
+      <SectionTitle theme={theme} title={incident.number} subtitle="Incident details" />
 
       <ShellCard theme={theme} className="p-5">
         <div className="space-y-5 text-sm">
@@ -1356,7 +1319,7 @@ function IncidentDetail({ theme, tenantSlug, id }) {
             </div>
             <div>
               <div className={cn("mb-1", theme.muted)}>Priority</div>
-              <div className="capitalize">{incident.priority || "—"}</div>
+              <PriorityChip priority={incident.priority} />
             </div>
             <div>
               <div className={cn("mb-1", theme.muted)}>Created</div>
@@ -1391,7 +1354,7 @@ function IncidentDetail({ theme, tenantSlug, id }) {
   )
 }
 
-function RequestDetail({ theme, tenantSlug, id }) {
+function SelfServiceRequestDetail({ theme, tenantSlug, id }) {
   const [requestItem, setRequestItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -1403,6 +1366,13 @@ function RequestDetail({ theme, tenantSlug, id }) {
   const [activityError, setActivityError] = useState("")
   const [newComment, setNewComment] = useState("")
   const [savingComment, setSavingComment] = useState(false)
+
+  const loadActivity = async () => {
+    const res = await fetch(`/api/tenant/${tenantSlug}/activity/request/${id}`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load activity")
+    setActivity(json.activity || [])
+  }
 
   useEffect(() => {
     async function load() {
@@ -1443,14 +1413,11 @@ function RequestDetail({ theme, tenantSlug, id }) {
   }, [id, tenantSlug])
 
   useEffect(() => {
-    async function loadActivity() {
+    async function run() {
       try {
         setActivityLoading(true)
         setActivityError("")
-        const res = await fetch(`/api/tenant/${tenantSlug}/activity/request/${id}`, { cache: "no-store" })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || "Failed to load activity")
-        setActivity(json.activity || [])
+        await loadActivity()
       } catch (err) {
         setActivityError(err.message || "Failed to load activity")
       } finally {
@@ -1458,7 +1425,7 @@ function RequestDetail({ theme, tenantSlug, id }) {
       }
     }
 
-    if (tenantSlug && id) loadActivity()
+    if (tenantSlug && id) run()
   }, [id, tenantSlug])
 
   const submitComment = async () => {
@@ -1477,17 +1444,8 @@ function RequestDetail({ theme, tenantSlug, id }) {
       if (!res.ok) throw new Error(json.error || "Failed to add comment")
 
       setComments((prev) => [...prev, json.comment])
-      setActivity((prev) => [
-        ...prev,
-        {
-          id: `temp-${Date.now()}`,
-          event_type: "comment_added",
-          message: "Comment added",
-          created_at: new Date().toISOString(),
-          profiles: json.comment.profiles,
-        },
-      ])
       setNewComment("")
+      await loadActivity()
     } catch (err) {
       setCommentsError(err.message || "Failed to add comment")
     } finally {
@@ -1501,11 +1459,7 @@ function RequestDetail({ theme, tenantSlug, id }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title={requestItem.number}
-        subtitle="Request details"
-      />
+      <SectionTitle theme={theme} title={requestItem.number} subtitle="Request details" />
 
       <ShellCard theme={theme} className="p-5">
         <div className="space-y-5 text-sm">
@@ -1750,21 +1704,23 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
     if (activeNav === "assets") return <GenericWorkspace theme={theme} title="Assets" subtitle="Endpoints, servers, and estate insight." items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]} icon={Monitor} />
     if (activeNav === "knowledge") return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and publish helpful documentation." items={knowledgeArticles} icon={BookOpen} />
     if (activeNav === "reports") return <GenericWorkspace theme={theme} title="Reports" subtitle="Operational reporting and insights." items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]} icon={BarChart3} />
+    if (activeNav.startsWith("itsm-incident-")) {
+      const id = activeNav.replace("itsm-incident-", "")
+      return <ITSMIncidentDetail theme={theme} tenantSlug={tenantSlug} id={id} />
+    }
+    if (activeNav.startsWith("itsm-request-")) {
+      const id = activeNav.replace("itsm-request-", "")
+      return <ITSMRequestDetail theme={theme} tenantSlug={tenantSlug} id={id} />
+    }
     return <IncidentForm theme={theme} tenantSlug={tenantSlug} />
   }
 
-  if (moduleId === "control") return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
+  if (moduleId === "control") return <GenericWorkspace theme={theme} title="Control workspace" subtitle="Devices, monitoring, remote tools, jobs, and patching." items={["Device overview", "Remote tools", "Patch compliance", "Alert queue"]} icon={Monitor} />
 
   if (moduleId === "selfservice") {
-    if (activeNav === "dashboard") {
-      return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
-    }
-    if (activeNav === "incidents") {
-      return <SelfServiceIncidents theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
-    }
-    if (activeNav === "requests") {
-      return <SelfServiceRequests theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
-    }
+    if (activeNav === "dashboard") return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+    if (activeNav === "incidents") return <SelfServiceIncidents theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+    if (activeNav === "requests") return <SelfServiceRequests theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
     if (activeNav === "raise-incident") {
       return (
         <IncidentForm
@@ -1789,11 +1745,11 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
     }
     if (activeNav.startsWith("incident-")) {
       const id = activeNav.replace("incident-", "")
-      return <IncidentDetail theme={theme} tenantSlug={tenantSlug} id={id} />
+      return <SelfServiceIncidentDetail theme={theme} tenantSlug={tenantSlug} id={id} />
     }
     if (activeNav.startsWith("request-")) {
       const id = activeNav.replace("request-", "")
-      return <RequestDetail theme={theme} tenantSlug={tenantSlug} id={id} />
+      return <SelfServiceRequestDetail theme={theme} tenantSlug={tenantSlug} id={id} />
     }
     if (activeNav === "knowledge") {
       return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and browse helpful articles." items={knowledgeArticles} icon={BookOpen} />
@@ -1802,28 +1758,12 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
   }
 
   if (moduleId === "admin") {
-    if (activeNav === "users") {
-      return <UsersManagement tenantSlug={tenantSlug} theme={theme} />
-    }
-
-    if (activeNav === "groups") {
-      return <GroupsManagement tenantSlug={tenantSlug} theme={theme} />
-    }
-
-    if (activeNav === "permissions") {
-      return <ModulePermissions tenantSlug={tenantSlug} theme={theme} />
-    }
-
+    if (activeNav === "users") return <UsersManagement tenantSlug={tenantSlug} theme={theme} />
+    if (activeNav === "groups") return <GroupsManagement tenantSlug={tenantSlug} theme={theme} />
+    if (activeNav === "permissions") return <ModulePermissions tenantSlug={tenantSlug} theme={theme} />
     if (activeNav === "branding") {
-      return (
-        <BrandingSettings
-          tenant={tenantData}
-          tenantSlug={tenantSlug}
-          theme={theme}
-        />
-      )
+      return <BrandingSettings tenant={tenantData} tenantSlug={tenantSlug} theme={theme} />
     }
-
     return <AdminOverview theme={theme} tenantSlug={tenantSlug} />
   }
 
