@@ -16,6 +16,8 @@ import {
   Users,
   Workflow,
   Layers3,
+  MessageSquare,
+  History,
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -191,6 +193,109 @@ function TrendCard({ theme }) {
           </LineChart>
         </ResponsiveContainer>
       </ClientOnlyChart>
+    </ShellCard>
+  )
+}
+
+function CommentsPanel({
+  theme,
+  title = "Comments",
+  comments = [],
+  loading = false,
+  error = "",
+  newComment,
+  setNewComment,
+  onSubmit,
+  saving = false,
+}) {
+  return (
+    <ShellCard theme={theme} className="p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <MessageSquare className="h-5 w-5" />
+        <div className="text-lg font-semibold">{title}</div>
+      </div>
+
+      {loading ? (
+        <div className="text-sm">Loading comments...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-400">{error}</div>
+      ) : comments.length === 0 ? (
+        <div className="text-sm">No comments yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {comments.map((comment) => (
+            <div key={comment.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">
+                    {comment.profiles?.full_name || comment.profiles?.email || "Unknown user"}
+                  </div>
+                  <div className={cn("mt-1 whitespace-pre-wrap text-sm", theme.muted)}>
+                    {comment.body}
+                  </div>
+                </div>
+                <div className={cn("shrink-0 text-xs", theme.muted2)}>
+                  {comment.created_at ? new Date(comment.created_at).toLocaleString() : ""}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={cn("mt-5 border-t pt-5", theme.line)}>
+        <div className={cn("mb-2 text-sm", theme.muted)}>Add comment</div>
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
+          placeholder="Add an update..."
+        />
+        <div className="mt-3 flex justify-end">
+          <ActionButton theme={theme} onClick={onSubmit} disabled={saving}>
+            {saving ? "Posting..." : "Post comment"}
+          </ActionButton>
+        </div>
+      </div>
+    </ShellCard>
+  )
+}
+
+function ActivityPanel({ theme, title = "Activity", activity = [], loading = false, error = "" }) {
+  return (
+    <ShellCard theme={theme} className="p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <History className="h-5 w-5" />
+        <div className="text-lg font-semibold">{title}</div>
+      </div>
+
+      {loading ? (
+        <div className="text-sm">Loading activity...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-400">{error}</div>
+      ) : activity.length === 0 ? (
+        <div className="text-sm">No activity yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {activity.map((item) => (
+            <div key={item.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">
+                    {item.message || item.event_type}
+                  </div>
+                  <div className={cn("mt-1 text-xs", theme.muted)}>
+                    {item.profiles?.full_name || item.profiles?.email || "System"}
+                  </div>
+                </div>
+                <div className={cn("shrink-0 text-xs", theme.muted2)}>
+                  {item.created_at ? new Date(item.created_at).toLocaleString() : ""}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </ShellCard>
   )
 }
@@ -1120,6 +1225,14 @@ function IncidentDetail({ theme, tenantSlug, id }) {
   const [incident, setIncident] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentsError, setCommentsError] = useState("")
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [savingComment, setSavingComment] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -1139,6 +1252,78 @@ function IncidentDetail({ theme, tenantSlug, id }) {
 
     if (tenantSlug && id) load()
   }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function loadComments() {
+      try {
+        setCommentsLoading(true)
+        setCommentsError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/incidents/${id}/comments`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load comments")
+        setComments(json.comments || [])
+      } catch (err) {
+        setCommentsError(err.message || "Failed to load comments")
+      } finally {
+        setCommentsLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) loadComments()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function loadActivity() {
+      try {
+        setActivityLoading(true)
+        setActivityError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load activity")
+        setActivity(json.activity || [])
+      } catch (err) {
+        setActivityError(err.message || "Failed to load activity")
+      } finally {
+        setActivityLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) loadActivity()
+  }, [id, tenantSlug])
+
+  const submitComment = async () => {
+    try {
+      if (!newComment.trim()) return
+      setSavingComment(true)
+      setCommentsError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/incidents/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: newComment }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to add comment")
+
+      setComments((prev) => [...prev, json.comment])
+      setActivity((prev) => [
+        ...prev,
+        {
+          id: `temp-${Date.now()}`,
+          event_type: "comment_added",
+          message: "Comment added",
+          created_at: new Date().toISOString(),
+          profiles: json.comment.profiles,
+        },
+      ])
+      setNewComment("")
+    } catch (err) {
+      setCommentsError(err.message || "Failed to add comment")
+    } finally {
+      setSavingComment(false)
+    }
+  }
 
   if (loading) return <div className="text-sm">Loading incident...</div>
   if (error) return <div className="text-sm text-rose-400">{error}</div>
@@ -1180,6 +1365,28 @@ function IncidentDetail({ theme, tenantSlug, id }) {
           </div>
         </div>
       </ShellCard>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+        <CommentsPanel
+          theme={theme}
+          title="Incident comments"
+          comments={comments}
+          loading={commentsLoading}
+          error={commentsError}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          onSubmit={submitComment}
+          saving={savingComment}
+        />
+
+        <ActivityPanel
+          theme={theme}
+          title="Incident activity"
+          activity={activity}
+          loading={activityLoading}
+          error={activityError}
+        />
+      </div>
     </div>
   )
 }
@@ -1188,6 +1395,14 @@ function RequestDetail({ theme, tenantSlug, id }) {
   const [requestItem, setRequestItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentsError, setCommentsError] = useState("")
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [savingComment, setSavingComment] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -1207,6 +1422,78 @@ function RequestDetail({ theme, tenantSlug, id }) {
 
     if (tenantSlug && id) load()
   }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function loadComments() {
+      try {
+        setCommentsLoading(true)
+        setCommentsError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/requests/${id}/comments`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load comments")
+        setComments(json.comments || [])
+      } catch (err) {
+        setCommentsError(err.message || "Failed to load comments")
+      } finally {
+        setCommentsLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) loadComments()
+  }, [id, tenantSlug])
+
+  useEffect(() => {
+    async function loadActivity() {
+      try {
+        setActivityLoading(true)
+        setActivityError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/activity/request/${id}`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load activity")
+        setActivity(json.activity || [])
+      } catch (err) {
+        setActivityError(err.message || "Failed to load activity")
+      } finally {
+        setActivityLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) loadActivity()
+  }, [id, tenantSlug])
+
+  const submitComment = async () => {
+    try {
+      if (!newComment.trim()) return
+      setSavingComment(true)
+      setCommentsError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/requests/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: newComment }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to add comment")
+
+      setComments((prev) => [...prev, json.comment])
+      setActivity((prev) => [
+        ...prev,
+        {
+          id: `temp-${Date.now()}`,
+          event_type: "comment_added",
+          message: "Comment added",
+          created_at: new Date().toISOString(),
+          profiles: json.comment.profiles,
+        },
+      ])
+      setNewComment("")
+    } catch (err) {
+      setCommentsError(err.message || "Failed to add comment")
+    } finally {
+      setSavingComment(false)
+    }
+  }
 
   if (loading) return <div className="text-sm">Loading request...</div>
   if (error) return <div className="text-sm text-rose-400">{error}</div>
@@ -1249,6 +1536,28 @@ function RequestDetail({ theme, tenantSlug, id }) {
           </div>
         </div>
       </ShellCard>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+        <CommentsPanel
+          theme={theme}
+          title="Request comments"
+          comments={comments}
+          loading={commentsLoading}
+          error={commentsError}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          onSubmit={submitComment}
+          saving={savingComment}
+        />
+
+        <ActivityPanel
+          theme={theme}
+          title="Request activity"
+          activity={activity}
+          loading={activityLoading}
+          error={activityError}
+        />
+      </div>
     </div>
   )
 }
