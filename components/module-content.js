@@ -170,94 +170,7 @@ export default function ModuleContent({
   }
 
   if (moduleId === "selfservice") {
-    if (activeNav === "home") {
-      return (
-        <SelfServiceOverview
-          theme={theme}
-          tenantSlug={tenantSlug}
-          onNavigate={onNavigate}
-        />
-      )
-    }
-
-    if (activeNav === "tickets") {
-      return (
-        <SelfServiceIncidentsList
-          theme={theme}
-          tenantSlug={tenantSlug}
-          onNavigate={onNavigate}
-        />
-      )
-    }
-
-    if (activeNav === "requests") {
-      return (
-        <SelfServiceRequestsList
-          theme={theme}
-          tenantSlug={tenantSlug}
-          onNavigate={onNavigate}
-        />
-      )
-    }
-
-    if (activeNav === "raise-incident") {
-      return (
-        <ITSMIncidentForm
-          theme={theme}
-          tenantSlug={tenantSlug}
-          heading="Raise an incident"
-          subtitle="Tell us what is broken and we will get it logged."
-          submitLabel="Submit incident"
-        />
-      )
-    }
-
-    if (activeNav === "new-request") {
-      return (
-        <ITSMRequestForm
-          theme={theme}
-          tenantSlug={tenantSlug}
-          heading="Request something"
-          subtitle="Request software, hardware, access, or onboarding help."
-          submitLabel="Submit request"
-        />
-      )
-    }
-
-    if (activeNav.startsWith("incident-")) {
-      const id = activeNav.replace("incident-", "")
-      return (
-        <SelfServiceIncidentDetail
-          theme={theme}
-          tenantSlug={tenantSlug}
-          id={id}
-        />
-      )
-    }
-
-    if (activeNav.startsWith("request-")) {
-      const id = activeNav.replace("request-", "")
-      return (
-        <SelfServiceRequestDetail
-          theme={theme}
-          tenantSlug={tenantSlug}
-          id={id}
-        />
-      )
-    }
-
-    if (activeNav === "knowledge") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Knowledge"
-          subtitle="Search and browse helpful articles."
-          items={knowledgeArticles}
-          icon={BookOpen}
-        />
-      )
-    }
-
+  if (activeNav === "home") {
     return (
       <SelfServiceOverview
         theme={theme}
@@ -266,6 +179,93 @@ export default function ModuleContent({
       />
     )
   }
+
+  if (activeNav === "tickets") {
+    return (
+      <SelfServiceIncidentsList
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
+  if (activeNav === "requests") {
+    return (
+      <SelfServiceRequestsList
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
+  if (activeNav === "raise-incident") {
+    return (
+      <ITSMIncidentForm
+        theme={theme}
+        tenantSlug={tenantSlug}
+        heading="Raise an incident"
+        subtitle="Tell us what is broken and we will get it logged."
+        submitLabel="Submit incident"
+      />
+    )
+  }
+
+  if (activeNav === "new-request") {
+    return (
+      <ITSMRequestForm
+        theme={theme}
+        tenantSlug={tenantSlug}
+        heading="Request something"
+        subtitle="Request software, hardware, access, or onboarding help."
+        submitLabel="Submit request"
+      />
+    )
+  }
+
+  if (activeNav.startsWith("incident-")) {
+    const id = activeNav.replace("incident-", "")
+    return (
+      <SelfServiceIncidentDetail
+        theme={theme}
+        tenantSlug={tenantSlug}
+        id={id}
+      />
+    )
+  }
+
+  if (activeNav.startsWith("request-")) {
+    const id = activeNav.replace("request-", "")
+    return (
+      <SelfServiceRequestDetail
+        theme={theme}
+        tenantSlug={tenantSlug}
+        id={id}
+      />
+    )
+  }
+
+  if (activeNav === "knowledge") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Knowledge"
+        subtitle="Search and browse helpful articles."
+        items={knowledgeArticles}
+        icon={BookOpen}
+      />
+    )
+  }
+
+  return (
+    <SelfServiceOverview
+      theme={theme}
+      tenantSlug={tenantSlug}
+      onNavigate={onNavigate}
+    />
+  )
+}
 
   if (moduleId === "admin") {
     if (activeNav === "users") {
