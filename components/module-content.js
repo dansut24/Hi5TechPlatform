@@ -100,6 +100,24 @@ function InputShell({ theme, value, onChange, placeholder, type = "text" }) {
   )
 }
 
+function StatusChip({ status }) {
+  const s = (status || "").toLowerCase()
+
+  let styles = "bg-slate-500/10 text-slate-400"
+
+  if (["open", "new"].includes(s)) styles = "bg-blue-500/10 text-blue-400"
+  if (["in_progress"].includes(s)) styles = "bg-amber-500/10 text-amber-400"
+  if (["resolved", "closed"].includes(s)) styles = "bg-emerald-500/10 text-emerald-400"
+  if (["cancelled"].includes(s)) styles = "bg-rose-500/10 text-rose-400"
+  if (["pending"].includes(s)) styles = "bg-violet-500/10 text-violet-400"
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles}`}>
+      {status || "unknown"}
+    </span>
+  )
+}
+
 function ClientOnlyChart({ children }) {
   const [mounted, setMounted] = useState(false)
 
@@ -874,6 +892,7 @@ function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
 
 function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
   const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -886,9 +905,7 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
         if (!tenantSlug) return
         setLoading(true)
         setError("")
-        const url = query
-          ? `/api/tenant/${tenantSlug}/selfservice/incidents?q=${encodeURIComponent(query)}`
-          : `/api/tenant/${tenantSlug}/selfservice/incidents`
+        const url = `/api/tenant/${tenantSlug}/selfservice/incidents?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}`
         const res = await fetch(url, { cache: "no-store" })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Failed to load incidents")
@@ -904,7 +921,7 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug, query])
+  }, [tenantSlug, query, statusFilter])
 
   return (
     <div className="space-y-6">
@@ -921,14 +938,30 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
       />
 
       <ShellCard theme={theme} className="p-4">
-        <div className="relative">
-          <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search my incidents..."
-            className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
-          />
+        <div className="grid gap-3 md:grid-cols-[1fr,200px]">
+          <div className="relative">
+            <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search my incidents..."
+              className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+          >
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="open">Open</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
         </div>
       </ShellCard>
 
@@ -949,11 +982,18 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
           <div className="px-5 py-6 text-sm">No incidents found.</div>
         ) : (
           rows.map((item) => (
-            <div key={item.id} className={cn("grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
+            <div
+              key={item.id}
+              onClick={() => onNavigate?.(`incident-${item.id}`, item.number)}
+              className={cn(
+                "grid cursor-pointer grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5",
+                theme.line
+              )}
+            >
               <div className="font-medium">{item.number}</div>
               <div>{item.short_description}</div>
               <div className="capitalize">{item.priority}</div>
-              <div className="capitalize">{item.status}</div>
+              <div><StatusChip status={item.status} /></div>
               <div>{new Date(item.created_at).toLocaleDateString()}</div>
             </div>
           ))
@@ -965,6 +1005,7 @@ function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
 
 function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
   const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -977,9 +1018,7 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
         if (!tenantSlug) return
         setLoading(true)
         setError("")
-        const url = query
-          ? `/api/tenant/${tenantSlug}/selfservice/requests?q=${encodeURIComponent(query)}`
-          : `/api/tenant/${tenantSlug}/selfservice/requests`
+        const url = `/api/tenant/${tenantSlug}/selfservice/requests?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}`
         const res = await fetch(url, { cache: "no-store" })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Failed to load requests")
@@ -995,7 +1034,7 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug, query])
+  }, [tenantSlug, query, statusFilter])
 
   return (
     <div className="space-y-6">
@@ -1012,14 +1051,30 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
       />
 
       <ShellCard theme={theme} className="p-4">
-        <div className="relative">
-          <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search my requests..."
-            className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
-          />
+        <div className="grid gap-3 md:grid-cols-[1fr,200px]">
+          <div className="relative">
+            <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search my requests..."
+              className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+          >
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="open">Open</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
         </div>
       </ShellCard>
 
@@ -1040,15 +1095,159 @@ function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
           <div className="px-5 py-6 text-sm">No requests found.</div>
         ) : (
           rows.map((item) => (
-            <div key={item.id} className={cn("grid grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
+            <div
+              key={item.id}
+              onClick={() => onNavigate?.(`request-${item.id}`, item.number)}
+              className={cn(
+                "grid cursor-pointer grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0 hover:bg-white/5",
+                theme.line
+              )}
+            >
               <div className="font-medium">{item.number}</div>
               <div>{item.request_type}</div>
               <div>{item.requested_for || "—"}</div>
-              <div className="capitalize">{item.status}</div>
+              <div><StatusChip status={item.status} /></div>
               <div>{new Date(item.created_at).toLocaleDateString()}</div>
             </div>
           ))
         )}
+      </ShellCard>
+    </div>
+  )
+}
+
+function IncidentDetail({ theme, tenantSlug, id }) {
+  const [incident, setIncident] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true)
+        setError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/incidents/${id}`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load incident")
+        setIncident(json.incident)
+      } catch (err) {
+        setError(err.message || "Failed to load incident")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) load()
+  }, [id, tenantSlug])
+
+  if (loading) return <div className="text-sm">Loading incident...</div>
+  if (error) return <div className="text-sm text-rose-400">{error}</div>
+  if (!incident) return null
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title={incident.number}
+        subtitle="Incident details"
+      />
+
+      <ShellCard theme={theme} className="p-5">
+        <div className="space-y-5 text-sm">
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Short description</div>
+            <div>{incident.short_description || "—"}</div>
+          </div>
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Details</div>
+            <div className="whitespace-pre-wrap">{incident.description || "—"}</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Status</div>
+              <StatusChip status={incident.status} />
+            </div>
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Priority</div>
+              <div className="capitalize">{incident.priority || "—"}</div>
+            </div>
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Created</div>
+              <div>{incident.created_at ? new Date(incident.created_at).toLocaleString() : "—"}</div>
+            </div>
+          </div>
+        </div>
+      </ShellCard>
+    </div>
+  )
+}
+
+function RequestDetail({ theme, tenantSlug, id }) {
+  const [requestItem, setRequestItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true)
+        setError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/requests/${id}`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load request")
+        setRequestItem(json.request)
+      } catch (err) {
+        setError(err.message || "Failed to load request")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (tenantSlug && id) load()
+  }, [id, tenantSlug])
+
+  if (loading) return <div className="text-sm">Loading request...</div>
+  if (error) return <div className="text-sm text-rose-400">{error}</div>
+  if (!requestItem) return null
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title={requestItem.number}
+        subtitle="Request details"
+      />
+
+      <ShellCard theme={theme} className="p-5">
+        <div className="space-y-5 text-sm">
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Request type</div>
+            <div>{requestItem.request_type || "—"}</div>
+          </div>
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Requested for</div>
+            <div>{requestItem.requested_for || "—"}</div>
+          </div>
+
+          <div>
+            <div className={cn("mb-1", theme.muted)}>Notes</div>
+            <div className="whitespace-pre-wrap">{requestItem.notes || "—"}</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Status</div>
+              <StatusChip status={requestItem.status} />
+            </div>
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Created</div>
+              <div>{requestItem.created_at ? new Date(requestItem.created_at).toLocaleString() : "—"}</div>
+            </div>
+          </div>
+        </div>
       </ShellCard>
     </div>
   )
@@ -1278,6 +1477,14 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
           submitLabel="Submit request"
         />
       )
+    }
+    if (activeNav.startsWith("incident-")) {
+      const id = activeNav.replace("incident-", "")
+      return <IncidentDetail theme={theme} tenantSlug={tenantSlug} id={id} />
+    }
+    if (activeNav.startsWith("request-")) {
+      const id = activeNav.replace("request-", "")
+      return <RequestDetail theme={theme} tenantSlug={tenantSlug} id={id} />
     }
     if (activeNav === "knowledge") {
       return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and browse helpful articles." items={knowledgeArticles} icon={BookOpen} />
