@@ -12,6 +12,7 @@ export async function GET(request, { params }) {
 
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get("q") || "").trim().toLowerCase()
+    const status = (searchParams.get("status") || "").trim().toLowerCase()
 
     const { data, error } = await access.admin
       .from("service_requests")
@@ -29,6 +30,12 @@ export async function GET(request, { params }) {
         `${requestRow.number || ""} ${requestRow.request_type || ""} ${requestRow.requested_for || ""} ${requestRow.status || ""}`
           .toLowerCase()
           .includes(q)
+      )
+    }
+
+    if (status) {
+      requests = requests.filter(
+        (requestRow) => (requestRow.status || "").toLowerCase() === status
       )
     }
 
