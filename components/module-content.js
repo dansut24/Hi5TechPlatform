@@ -6,16 +6,16 @@ import {
   BarChart3,
   BookOpen,
   ClipboardList,
+  Mail,
   Monitor,
+  Palette,
   Plus,
   Search,
   Shield,
   UserCircle2,
-  Workflow,
   Users,
-  Mail,
+  Workflow,
   Layers3,
-  Palette,
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -729,6 +729,303 @@ function ControlWorkspace({ theme, tenantSlug }) {
   )
 }
 
+function SelfServiceOverview({ theme, tenantSlug }) {
+  const [summary, setSummary] = useState({
+    myIncidents: 0,
+    myOpenIncidents: 0,
+    myRequests: 0,
+    myOpenRequests: 0,
+    recentIncidents: [],
+    recentRequests: [],
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+        setLoading(true)
+        setError("")
+        const res = await fetch(`/api/tenant/${tenantSlug}/selfservice/summary`, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load self service summary")
+        if (alive) {
+          setSummary(
+            json.summary || {
+              myIncidents: 0,
+              myOpenIncidents: 0,
+              myRequests: 0,
+              myOpenRequests: 0,
+              recentIncidents: [],
+              recentRequests: [],
+            }
+          )
+        }
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load self service summary")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug])
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title="Self Service"
+        subtitle="Raise tickets, request services, and track your own activity."
+        action={
+          <div className="flex gap-2">
+            <ActionButton theme={theme}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Incident
+            </ActionButton>
+            <ActionButton theme={theme} secondary>
+              <ClipboardList className="mr-2 h-4 w-4" />
+              New Request
+            </ActionButton>
+          </div>
+        }
+      />
+
+      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["My Incidents", summary.myIncidents],
+          ["Open Incidents", summary.myOpenIncidents],
+          ["My Requests", summary.myRequests],
+          ["Open Requests", summary.myOpenRequests],
+        ].map(([label, value]) => (
+          <ShellCard key={label} theme={theme} className="p-5">
+            <div className={cn("text-sm", theme.muted)}>{label}</div>
+            <div className="mt-2 text-3xl font-semibold">{loading ? "…" : value}</div>
+          </ShellCard>
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ShellCard theme={theme} className="p-5">
+          <div className="mb-4 text-lg font-semibold">Recent incidents</div>
+          {loading ? (
+            <div className="text-sm">Loading incidents...</div>
+          ) : summary.recentIncidents.length === 0 ? (
+            <div className="text-sm">No incidents raised yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {summary.recentIncidents.map((incident) => (
+                <div key={incident.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+                  <div className="text-sm font-medium">{incident.number}</div>
+                  <div className={cn("mt-1 text-sm", theme.muted)}>{incident.short_description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ShellCard>
+
+        <ShellCard theme={theme} className="p-5">
+          <div className="mb-4 text-lg font-semibold">Recent requests</div>
+          {loading ? (
+            <div className="text-sm">Loading requests...</div>
+          ) : summary.recentRequests.length === 0 ? (
+            <div className="text-sm">No requests submitted yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {summary.recentRequests.map((requestItem) => (
+                <div key={requestItem.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+                  <div className="text-sm font-medium">{requestItem.number}</div>
+                  <div className={cn("mt-1 text-sm", theme.muted)}>{requestItem.request_type}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ShellCard>
+      </div>
+    </div>
+  )
+}
+
+function SelfServiceIncidents({ theme, tenantSlug }) {
+  const [query, setQuery] = useState("")
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+        setLoading(true)
+        setError("")
+        const url = query
+          ? `/api/tenant/${tenantSlug}/selfservice/incidents?q=${encodeURIComponent(query)}`
+          : `/api/tenant/${tenantSlug}/selfservice/incidents`
+        const res = await fetch(url, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load incidents")
+        if (alive) setRows(json.incidents || [])
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load incidents")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, query])
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title="My incidents"
+        subtitle="Track the incidents you have raised."
+        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />Raise Incident</ActionButton>}
+      />
+
+      <ShellCard theme={theme} className="p-4">
+        <div className="relative">
+          <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search my incidents..."
+            className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
+          />
+        </div>
+      </ShellCard>
+
+      <ShellCard theme={theme} className="overflow-hidden">
+        <div className={cn("grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide", theme.line, theme.muted2)}>
+          <div>Number</div>
+          <div>Short description</div>
+          <div>Priority</div>
+          <div>Status</div>
+          <div>Created</div>
+        </div>
+
+        {loading ? (
+          <div className="px-5 py-6 text-sm">Loading incidents...</div>
+        ) : error ? (
+          <div className="px-5 py-6 text-sm text-rose-400">{error}</div>
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-6 text-sm">No incidents found.</div>
+        ) : (
+          rows.map((item) => (
+            <div key={item.id} className={cn("grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
+              <div className="font-medium">{item.number}</div>
+              <div>{item.short_description}</div>
+              <div className="capitalize">{item.priority}</div>
+              <div className="capitalize">{item.status}</div>
+              <div>{new Date(item.created_at).toLocaleDateString()}</div>
+            </div>
+          ))
+        )}
+      </ShellCard>
+    </div>
+  )
+}
+
+function SelfServiceRequests({ theme, tenantSlug }) {
+  const [query, setQuery] = useState("")
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+        setLoading(true)
+        setError("")
+        const url = query
+          ? `/api/tenant/${tenantSlug}/selfservice/requests?q=${encodeURIComponent(query)}`
+          : `/api/tenant/${tenantSlug}/selfservice/requests`
+        const res = await fetch(url, { cache: "no-store" })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to load requests")
+        if (alive) setRows(json.requests || [])
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load requests")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, query])
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        theme={theme}
+        title="My requests"
+        subtitle="Track the service requests you have submitted."
+        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />New Request</ActionButton>}
+      />
+
+      <ShellCard theme={theme} className="p-4">
+        <div className="relative">
+          <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search my requests..."
+            className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
+          />
+        </div>
+      </ShellCard>
+
+      <ShellCard theme={theme} className="overflow-hidden">
+        <div className={cn("grid grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide", theme.line, theme.muted2)}>
+          <div>Number</div>
+          <div>Request type</div>
+          <div>Requested for</div>
+          <div>Status</div>
+          <div>Created</div>
+        </div>
+
+        {loading ? (
+          <div className="px-5 py-6 text-sm">Loading requests...</div>
+        ) : error ? (
+          <div className="px-5 py-6 text-sm text-rose-400">{error}</div>
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-6 text-sm">No requests found.</div>
+        ) : (
+          rows.map((item) => (
+            <div key={item.id} className={cn("grid grid-cols-[140px,1fr,160px,140px,160px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}>
+              <div className="font-medium">{item.number}</div>
+              <div>{item.request_type}</div>
+              <div>{item.requested_for || "—"}</div>
+              <div className="capitalize">{item.status}</div>
+              <div>{new Date(item.created_at).toLocaleDateString()}</div>
+            </div>
+          ))
+        )}
+      </ShellCard>
+    </div>
+  )
+}
+
 function AdminOverview({ theme, tenantSlug }) {
   const [summary, setSummary] = useState({
     totalUsers: 0,
@@ -921,7 +1218,16 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
   }
 
   if (moduleId === "control") return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
-  if (moduleId === "selfservice") return <GenericWorkspace theme={theme} title="SelfService" subtitle="End-user support, requests, and knowledge." items={["Raise incident", "Request software", "Request hardware", "Search knowledge"]} icon={UserCircle2} />
+
+  if (moduleId === "selfservice") {
+    if (activeNav === "dashboard") return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} />
+    if (activeNav === "incidents") return <SelfServiceIncidents theme={theme} tenantSlug={tenantSlug} />
+    if (activeNav === "requests") return <SelfServiceRequests theme={theme} tenantSlug={tenantSlug} />
+    if (activeNav === "knowledge") {
+      return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and browse helpful articles." items={knowledgeArticles} icon={BookOpen} />
+    }
+    return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} />
+  }
 
   if (moduleId === "admin") {
     if (activeNav === "users") {
