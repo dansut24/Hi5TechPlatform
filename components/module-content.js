@@ -395,7 +395,7 @@ function ITSMIncidents({ theme, tenantSlug }) {
   )
 }
 
-function IncidentForm({ theme, tenantSlug }) {
+function IncidentForm({ theme, tenantSlug, heading = "Raise incident", subtitle = "Capture a disruption with the right priority and ownership.", submitLabel = "Submit incident" }) {
   const [form, setForm] = useState({
     shortDescription: "",
     details: "",
@@ -448,8 +448,8 @@ function IncidentForm({ theme, tenantSlug }) {
     <div className="space-y-6">
       <SectionTitle
         theme={theme}
-        title="Raise incident"
-        subtitle="Capture a disruption with the right priority and ownership."
+        title={heading}
+        subtitle={subtitle}
         action={<ActionButton theme={theme} secondary>Save Draft</ActionButton>}
       />
       <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
@@ -492,7 +492,7 @@ function IncidentForm({ theme, tenantSlug }) {
 
           <div className="mt-5 flex gap-3">
             <ActionButton theme={theme} onClick={submit} disabled={saving}>
-              {saving ? "Submitting..." : "Submit incident"}
+              {saving ? "Submitting..." : submitLabel}
             </ActionButton>
             <ActionButton theme={theme} secondary>
               Cancel
@@ -520,7 +520,7 @@ function IncidentForm({ theme, tenantSlug }) {
   )
 }
 
-function ServiceRequestForm({ theme, tenantSlug }) {
+function ServiceRequestForm({ theme, tenantSlug, heading = "Service request", subtitle = "Create a fulfilment request with approvals and notes.", submitLabel = "Submit request" }) {
   const [form, setForm] = useState({
     requestType: "Software Request",
     requestedFor: "",
@@ -568,8 +568,8 @@ function ServiceRequestForm({ theme, tenantSlug }) {
     <div className="space-y-6">
       <SectionTitle
         theme={theme}
-        title="Service request"
-        subtitle="Create a fulfilment request with approvals and notes."
+        title={heading}
+        subtitle={subtitle}
         action={<ActionButton theme={theme} secondary>Request Template</ActionButton>}
       />
       <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
@@ -614,7 +614,7 @@ function ServiceRequestForm({ theme, tenantSlug }) {
 
           <div className="mt-5 flex gap-3">
             <ActionButton theme={theme} onClick={submit} disabled={saving}>
-              {saving ? "Submitting..." : "Submit request"}
+              {saving ? "Submitting..." : submitLabel}
             </ActionButton>
             <ActionButton theme={theme} secondary>Cancel</ActionButton>
           </div>
@@ -729,7 +729,7 @@ function ControlWorkspace({ theme, tenantSlug }) {
   )
 }
 
-function SelfServiceOverview({ theme, tenantSlug }) {
+function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
   const [summary, setSummary] = useState({
     myIncidents: 0,
     myOpenIncidents: 0,
@@ -785,11 +785,11 @@ function SelfServiceOverview({ theme, tenantSlug }) {
         subtitle="Raise tickets, request services, and track your own activity."
         action={
           <div className="flex gap-2">
-            <ActionButton theme={theme}>
+            <ActionButton theme={theme} onClick={() => onNavigate?.("raise-incident", "Raise Incident")}>
               <Plus className="mr-2 h-4 w-4" />
               New Incident
             </ActionButton>
-            <ActionButton theme={theme} secondary>
+            <ActionButton theme={theme} secondary onClick={() => onNavigate?.("new-request", "New Request")}>
               <ClipboardList className="mr-2 h-4 w-4" />
               New Request
             </ActionButton>
@@ -801,21 +801,31 @@ function SelfServiceOverview({ theme, tenantSlug }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          ["My Incidents", summary.myIncidents],
-          ["Open Incidents", summary.myOpenIncidents],
-          ["My Requests", summary.myRequests],
-          ["Open Requests", summary.myOpenRequests],
-        ].map(([label, value]) => (
-          <ShellCard key={label} theme={theme} className="p-5">
-            <div className={cn("text-sm", theme.muted)}>{label}</div>
-            <div className="mt-2 text-3xl font-semibold">{loading ? "…" : value}</div>
-          </ShellCard>
+          ["My Incidents", summary.myIncidents, () => onNavigate?.("incidents", "My Incidents")],
+          ["Open Incidents", summary.myOpenIncidents, () => onNavigate?.("incidents", "My Incidents")],
+          ["My Requests", summary.myRequests, () => onNavigate?.("requests", "My Requests")],
+          ["Open Requests", summary.myOpenRequests, () => onNavigate?.("requests", "My Requests")],
+        ].map(([label, value, onClick]) => (
+          <button key={label} onClick={onClick} className="text-left">
+            <ShellCard theme={theme} className="p-5 transition hover:scale-[1.01]">
+              <div className={cn("text-sm", theme.muted)}>{label}</div>
+              <div className="mt-2 text-3xl font-semibold">{loading ? "…" : value}</div>
+            </ShellCard>
+          </button>
         ))}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ShellCard theme={theme} className="p-5">
-          <div className="mb-4 text-lg font-semibold">Recent incidents</div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-lg font-semibold">Recent incidents</div>
+            <button
+              onClick={() => onNavigate?.("incidents", "My Incidents")}
+              className={cn("text-sm", theme.muted)}
+            >
+              View all
+            </button>
+          </div>
           {loading ? (
             <div className="text-sm">Loading incidents...</div>
           ) : summary.recentIncidents.length === 0 ? (
@@ -833,7 +843,15 @@ function SelfServiceOverview({ theme, tenantSlug }) {
         </ShellCard>
 
         <ShellCard theme={theme} className="p-5">
-          <div className="mb-4 text-lg font-semibold">Recent requests</div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-lg font-semibold">Recent requests</div>
+            <button
+              onClick={() => onNavigate?.("requests", "My Requests")}
+              className={cn("text-sm", theme.muted)}
+            >
+              View all
+            </button>
+          </div>
           {loading ? (
             <div className="text-sm">Loading requests...</div>
           ) : summary.recentRequests.length === 0 ? (
@@ -854,7 +872,7 @@ function SelfServiceOverview({ theme, tenantSlug }) {
   )
 }
 
-function SelfServiceIncidents({ theme, tenantSlug }) {
+function SelfServiceIncidents({ theme, tenantSlug, onNavigate }) {
   const [query, setQuery] = useState("")
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -894,7 +912,12 @@ function SelfServiceIncidents({ theme, tenantSlug }) {
         theme={theme}
         title="My incidents"
         subtitle="Track the incidents you have raised."
-        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />Raise Incident</ActionButton>}
+        action={
+          <ActionButton theme={theme} onClick={() => onNavigate?.("raise-incident", "Raise Incident")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Raise Incident
+          </ActionButton>
+        }
       />
 
       <ShellCard theme={theme} className="p-4">
@@ -940,7 +963,7 @@ function SelfServiceIncidents({ theme, tenantSlug }) {
   )
 }
 
-function SelfServiceRequests({ theme, tenantSlug }) {
+function SelfServiceRequests({ theme, tenantSlug, onNavigate }) {
   const [query, setQuery] = useState("")
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -980,7 +1003,12 @@ function SelfServiceRequests({ theme, tenantSlug }) {
         theme={theme}
         title="My requests"
         subtitle="Track the service requests you have submitted."
-        action={<ActionButton theme={theme}><Plus className="mr-2 h-4 w-4" />New Request</ActionButton>}
+        action={
+          <ActionButton theme={theme} onClick={() => onNavigate?.("new-request", "New Request")}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Request
+          </ActionButton>
+        }
       />
 
       <ShellCard theme={theme} className="p-4">
@@ -1204,7 +1232,7 @@ function GenericWorkspace({ title, subtitle, items, icon: Icon, theme }) {
   )
 }
 
-export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, tenantData }) {
+export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, tenantData, onNavigate }) {
   if (moduleId === "itsm") {
     if (activeNav === "dashboard") return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} />
     if (activeNav === "incidents") return <ITSMIncidents theme={theme} tenantSlug={tenantSlug} />
@@ -1220,41 +1248,54 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
   if (moduleId === "control") return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
 
   if (moduleId === "selfservice") {
-    if (activeNav === "dashboard") return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} />
-    if (activeNav === "incidents") return <SelfServiceIncidents theme={theme} tenantSlug={tenantSlug} />
-    if (activeNav === "requests") return <SelfServiceRequests theme={theme} tenantSlug={tenantSlug} />
+    if (activeNav === "dashboard") {
+      return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+    }
+    if (activeNav === "incidents") {
+      return <SelfServiceIncidents theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+    }
+    if (activeNav === "requests") {
+      return <SelfServiceRequests theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+    }
+    if (activeNav === "raise-incident") {
+      return (
+        <IncidentForm
+          theme={theme}
+          tenantSlug={tenantSlug}
+          heading="Raise an incident"
+          subtitle="Tell us what is broken and we will get it logged."
+          submitLabel="Submit incident"
+        />
+      )
+    }
+    if (activeNav === "new-request") {
+      return (
+        <ServiceRequestForm
+          theme={theme}
+          tenantSlug={tenantSlug}
+          heading="Request something"
+          subtitle="Request software, hardware, access, or onboarding help."
+          submitLabel="Submit request"
+        />
+      )
+    }
     if (activeNav === "knowledge") {
       return <GenericWorkspace theme={theme} title="Knowledge" subtitle="Search and browse helpful articles." items={knowledgeArticles} icon={BookOpen} />
     }
-    return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} />
+    return <SelfServiceOverview theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
   }
 
   if (moduleId === "admin") {
     if (activeNav === "users") {
-      return (
-        <UsersManagement
-          tenantSlug={tenantSlug}
-          theme={theme}
-        />
-      )
+      return <UsersManagement tenantSlug={tenantSlug} theme={theme} />
     }
 
     if (activeNav === "groups") {
-      return (
-        <GroupsManagement
-          tenantSlug={tenantSlug}
-          theme={theme}
-        />
-      )
+      return <GroupsManagement tenantSlug={tenantSlug} theme={theme} />
     }
 
     if (activeNav === "permissions") {
-      return (
-        <ModulePermissions
-          tenantSlug={tenantSlug}
-          theme={theme}
-        />
-      )
+      return <ModulePermissions tenantSlug={tenantSlug} theme={theme} />
     }
 
     if (activeNav === "branding") {
@@ -1270,6 +1311,9 @@ export default function ModuleContent({ moduleId, activeNav, theme, tenantSlug, 
     return <AdminOverview theme={theme} tenantSlug={tenantSlug} />
   }
 
-  if (moduleId === "analytics") return <GenericWorkspace theme={theme} title="Analytics" subtitle="KPIs, trends, and forecasting." items={["MTTR", "CSAT", "SLA", "Capacity"]} icon={BarChart3} />
+  if (moduleId === "analytics") {
+    return <GenericWorkspace theme={theme} title="Analytics" subtitle="KPIs, trends, and forecasting." items={["MTTR", "CSAT", "SLA", "Capacity"]} icon={BarChart3} />
+  }
+
   return <GenericWorkspace theme={theme} title="Automation Hub" subtitle="Workflows, triggers, and recent runs." items={["VIP escalation", "Onboarding flow", "Patch reminder", "Access approval"]} icon={Workflow} />
 }
