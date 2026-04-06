@@ -51,9 +51,8 @@ export const navByModule = {
     { id: "reports", label: "Reports", icon: BarChart3 },
   ],
   selfservice: [
-    { id: "home", label: "Home", icon: LayoutDashboard },
-    { id: "catalog", label: "Catalog", icon: Grid3X3 },
-    { id: "tickets", label: "My Tickets", icon: Ticket },
+    { id: "dashboard", label: "Overview", icon: UserCircle2 },
+    { id: "incidents", label: "My Incidents", icon: AlertTriangle },
     { id: "requests", label: "My Requests", icon: ClipboardList },
     { id: "knowledge", label: "Knowledge", icon: BookOpen },
   ],
