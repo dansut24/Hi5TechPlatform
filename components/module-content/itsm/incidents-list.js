@@ -1,40 +1,136 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import ShellCard from "../shared/shell-card"
-import SectionTitle from "../shared/section-title"
-import StatusChip from "../shared/status-chip"
+import { Plus, Search } from "lucide-react"
+import { cn } from "@/components/shared-ui"
+import ShellCard from "@/components/module-content/shared/shell-card"
+import SectionTitle from "@/components/module-content/shared/section-title"
+import ActionButton from "@/components/module-content/shared/action-button"
+import StatusChip from "@/components/module-content/shared/status-chip"
+import PriorityChip from "@/components/module-content/shared/priority-chip"
 
 export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
+  const [query, setQuery] = useState("")
   const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    if (!tenantSlug) return
-    fetch(`/api/tenant/${tenantSlug}/incidents`)
-      .then((r) => r.json())
-      .then((j) => setRows(j.incidents || []))
-  }, [tenantSlug])
+    let alive = true
+
+    async function load() {
+      try {
+        if (!tenantSlug) return
+
+        setLoading(true)
+        setError("")
+
+        const url = query
+          ? `/api/tenant/${tenantSlug}/incidents?q=${encodeURIComponent(query)}`
+          : `/api/tenant/${tenantSlug}/incidents`
+
+        const res = await fetch(url, { cache: "no-store" })
+        const json = await res.json()
+
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to load incidents")
+        }
+
+        if (alive) setRows(json.incidents || [])
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load incidents")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, query])
 
   return (
     <div className="space-y-6">
-      <SectionTitle title="Incidents" theme={theme} />
-
-      <ShellCard theme={theme}>
-        {rows.map((i) => (
-          <div
-            key={i.id}
-            onClick={() => onNavigate?.(`itsm-incident-${i.id}`, i.number)}
-            className="p-4 border-b cursor-pointer hover:bg-white/5"
+      <SectionTitle
+        theme={theme}
+        title="Incident management"
+        subtitle="Track, prioritise, and resolve operational disruption with SLA visibility."
+        action={
+          <ActionButton
+            theme={theme}
+            onClick={() => onNavigate?.("new-incident", "New Incident")}
           >
-            <div className="flex justify-between">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Incident
+          </ActionButton>
+        }
+      />
+
+      <ShellCard theme={theme} className="p-4">
+        <div className="relative">
+          <Search
+            className={cn(
+              "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2",
+              theme.muted
+            )}
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search incidents..."
+            className={cn(
+              "h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none",
+              theme.input
+            )}
+          />
+        </div>
+      </ShellCard>
+
+      <ShellCard theme={theme} className="overflow-hidden">
+        <div
+          className={cn(
+            "grid grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide",
+            theme.line,
+            theme.muted2
+          )}
+        >
+          <div>Number</div>
+          <div>Short description</div>
+          <div>Priority</div>
+          <div>Status</div>
+          <div>Created</div>
+        </div>
+
+        {loading ? (
+          <div className="px-5 py-6 text-sm">Loading incidents...</div>
+        ) : error ? (
+          <div className="px-5 py-6 text-sm text-rose-400">{error}</div>
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-6 text-sm">No incidents found.</div>
+        ) : (
+          rows.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate?.(`itsm-incident-${item.id}`, item.number)}
+              className={cn(
+                "grid w-full grid-cols-[140px,1fr,120px,140px,160px] gap-4 border-b px-5 py-4 text-left text-sm last:border-b-0 hover:bg-white/5",
+                theme.line
+              )}
+            >
+              <div className="font-medium">{item.number}</div>
+              <div>{item.short_description}</div>
               <div>
-                <div className="font-medium">{i.number}</div>
-                <div className="text-sm opacity-60">{i.short_description}</div>
+                <PriorityChip priority={item.priority} />
               </div>
-              <StatusChip status={i.status} />
-            </div>
-          </div>
-        ))}
+              <div>
+                <StatusChip status={item.status} />
+              </div>
+              <div>{new Date(item.created_at).toLocaleDateString()}</div>
+            </button>
+          ))
+        )}
       </ShellCard>
     </div>
   )
