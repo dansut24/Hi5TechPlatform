@@ -48,122 +48,128 @@ export default function ModuleContent({
   onNavigate,
 }) {
   if (moduleId === "itsm") {
-    if (activeNav === "dashboard") {
-      return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} />
-    }
-
-    if (activeNav === "incidents") {
-      return (
-        <ITSMIncidentsList
-          theme={theme}
-          tenantSlug={tenantSlug}
-          onNavigate={onNavigate}
-        />
-      )
-    }
-
-    if (activeNav === "requests") {
-      return (
-        <ITSMRequestsList
-          theme={theme}
-          tenantSlug={tenantSlug}
-          onNavigate={onNavigate}
-        />
-      )
-    }
-
-    if (activeNav === "new-incident") {
-      return <ITSMIncidentForm theme={theme} tenantSlug={tenantSlug} />
-    }
-
-    if (activeNav === "new-request") {
-      return <ITSMRequestForm theme={theme} tenantSlug={tenantSlug} />
-    }
-
-    if (activeNav.startsWith("itsm-incident-")) {
-      const id = activeNav.replace("itsm-incident-", "")
-      return (
-        <ITSMIncidentDetail
-          theme={theme}
-          tenantSlug={tenantSlug}
-          id={id}
-        />
-      )
-    }
-
-    if (activeNav.startsWith("itsm-request-")) {
-      const id = activeNav.replace("itsm-request-", "")
-      return (
-        <ITSMRequestDetail
-          theme={theme}
-          tenantSlug={tenantSlug}
-          id={id}
-        />
-      )
-    }
-
-    if (activeNav === "changes") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Change management"
-          subtitle="Plan risk, approvals, implementation windows, and backout plans."
-          items={["CAB schedule", "Approval gates", "Implementation plan", "Backout plan"]}
-          icon={Workflow}
-        />
-      )
-    }
-
-    if (activeNav === "problems") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Problem management"
-          subtitle="Root cause analysis, known errors, and proactive prevention."
-          items={["Known errors", "RCA workbench", "Trend correlation", "Problem backlog"]}
-          icon={AlertTriangle}
-        />
-      )
-    }
-
-    if (activeNav === "assets") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Assets"
-          subtitle="Endpoints, servers, and estate insight."
-          items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]}
-          icon={Monitor}
-        />
-      )
-    }
-
-    if (activeNav === "knowledge") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Knowledge"
-          subtitle="Search and publish helpful documentation."
-          items={knowledgeArticles}
-          icon={BookOpen}
-        />
-      )
-    }
-
-    if (activeNav === "reports") {
-      return (
-        <SimpleWorkspace
-          theme={theme}
-          title="Reports"
-          subtitle="Operational reporting and insights."
-          items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]}
-          icon={BarChart3}
-        />
-      )
-    }
-
-    return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} />
+  if (activeNav === "dashboard") {
+    return (
+      <ITSMDashboard
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
   }
+
+  if (activeNav === "incidents") {
+    return (
+      <ITSMIncidentsList
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
+  if (activeNav === "requests") {
+    return (
+      <ITSMRequestsList
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
+  if (activeNav === "new-incident") {
+    return <ITSMIncidentForm theme={theme} tenantSlug={tenantSlug} />
+  }
+
+  if (activeNav === "new-request") {
+    return <ITSMRequestForm theme={theme} tenantSlug={tenantSlug} />
+  }
+
+  if (activeNav.startsWith("itsm-incident-")) {
+    const id = activeNav.replace("itsm-incident-", "")
+    return (
+      <ITSMIncidentDetail
+        theme={theme}
+        tenantSlug={tenantSlug}
+        id={id}
+      />
+    )
+  }
+
+  if (activeNav.startsWith("itsm-request-")) {
+    const id = activeNav.replace("itsm-request-", "")
+    return (
+      <ITSMRequestDetail
+        theme={theme}
+        tenantSlug={tenantSlug}
+        id={id}
+      />
+    )
+  }
+
+  if (activeNav === "changes") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Change management"
+        subtitle="Plan risk, approvals, implementation windows, and backout plans."
+        items={["CAB schedule", "Approval gates", "Implementation plan", "Backout plan"]}
+        icon={Workflow}
+      />
+    )
+  }
+
+  if (activeNav === "problems") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Problem management"
+        subtitle="Root cause analysis, known errors, and proactive prevention."
+        items={["Known errors", "RCA workbench", "Trend correlation", "Problem backlog"]}
+        icon={AlertTriangle}
+      />
+    )
+  }
+
+  if (activeNav === "assets") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Assets"
+        subtitle="Endpoints, servers, and estate insight."
+        items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]}
+        icon={Monitor}
+      />
+    )
+  }
+
+  if (activeNav === "knowledge") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Knowledge"
+        subtitle="Search and publish helpful documentation."
+        items={knowledgeArticles}
+        icon={BookOpen}
+      />
+    )
+  }
+
+  if (activeNav === "reports") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Reports"
+        subtitle="Operational reporting and insights."
+        items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]}
+        icon={BarChart3}
+      />
+    )
+  }
+
+  return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
+}
 
   if (moduleId === "control") {
     return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
