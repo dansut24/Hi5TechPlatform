@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { RefreshCw, Search } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+import { hasControlCapability } from "@/lib/permissions/control"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
 import ActionButton from "@/components/module-content/shared/action-button"
@@ -22,7 +23,14 @@ function DeviceStatusChip({ status }) {
   )
 }
 
-export default function ControlDevicesList({ theme, tenantSlug, onNavigate }) {
+export default function ControlDevicesList({
+  theme,
+  tenantSlug,
+  onNavigate,
+  permissionContext = {},
+}) {
+  const canViewDevices = hasControlCapability(permissionContext, "control.devices.view")
+
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -33,7 +41,7 @@ export default function ControlDevicesList({ theme, tenantSlug, onNavigate }) {
 
     async function load() {
       try {
-        if (!tenantSlug) return
+        if (!tenantSlug || !canViewDevices) return
         setLoading(true)
         setError("")
         const res = await fetch(`/api/tenant/${tenantSlug}/devices`, { cache: "no-store" })
@@ -51,7 +59,7 @@ export default function ControlDevicesList({ theme, tenantSlug, onNavigate }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug])
+  }, [tenantSlug, canViewDevices])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -64,6 +72,17 @@ export default function ControlDevicesList({ theme, tenantSlug, onNavigate }) {
         .includes(q)
     )
   }, [devices, query])
+
+  if (!canViewDevices) {
+    return (
+      <ShellCard theme={theme} className="p-5">
+        <div className="text-lg font-semibold">Access denied</div>
+        <div className={cn("mt-2 text-sm", theme.muted)}>
+          You do not have permission to view managed devices.
+        </div>
+      </ShellCard>
+    )
+  }
 
   return (
     <div className="space-y-6">
