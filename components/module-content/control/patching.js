@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useState } from "react"
 import { RefreshCw, ShieldCheck, Wrench } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+import { hasControlCapability } from "@/lib/permissions/control"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
 import ActionButton from "@/components/module-content/shared/action-button"
 
-export default function ControlPatching({ theme, tenantSlug }) {
+export default function ControlPatching({ theme, tenantSlug, permissionContext = {} }) {
+  const canViewPatching = hasControlCapability(permissionContext, "control.patching.view")
+  const canManagePatching = hasControlCapability(permissionContext, "control.patching.manage")
+
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -17,7 +21,7 @@ export default function ControlPatching({ theme, tenantSlug }) {
 
     async function load() {
       try {
-        if (!tenantSlug) return
+        if (!tenantSlug || !canViewPatching) return
         setLoading(true)
         setError("")
         const res = await fetch(`/api/tenant/${tenantSlug}/devices`, { cache: "no-store" })
@@ -35,7 +39,7 @@ export default function ControlPatching({ theme, tenantSlug }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug])
+  }, [tenantSlug, canViewPatching])
 
   const warningCount = useMemo(
     () => devices.filter((d) => (d.status || "").toLowerCase() === "warning").length,
@@ -47,6 +51,17 @@ export default function ControlPatching({ theme, tenantSlug }) {
     [devices, warningCount]
   )
 
+  if (!canViewPatching) {
+    return (
+      <ShellCard theme={theme} className="p-5">
+        <div className="text-lg font-semibold">Access denied</div>
+        <div className={cn("mt-2 text-sm", theme.muted)}>
+          You do not have permission to view patching information.
+        </div>
+      </ShellCard>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <SectionTitle
@@ -54,10 +69,17 @@ export default function ControlPatching({ theme, tenantSlug }) {
         title="Patching"
         subtitle="Compliance and remediation snapshot for managed devices."
         action={
-          <ActionButton theme={theme}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </ActionButton>
+          <div className="flex gap-2">
+            <ActionButton theme={theme}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </ActionButton>
+            {canManagePatching ? (
+              <ActionButton theme={theme} secondary>
+                Manage Policies
+              </ActionButton>
+            ) : null}
+          </div>
         }
       />
 
@@ -87,14 +109,6 @@ export default function ControlPatching({ theme, tenantSlug }) {
           </div>
         </ShellCard>
       </div>
-
-      <ShellCard theme={theme} className="p-5">
-        <div className="text-lg font-semibold">Patching notes</div>
-        <div className={cn("mt-4 space-y-3 text-sm", theme.muted)}>
-          <p>This is the place to add missing updates, approval flows, and patch ring status next.</p>
-          <p>You can later split this into compliance, pending updates, deployment windows, and history.</p>
-        </div>
-      </ShellCard>
     </div>
   )
 }
