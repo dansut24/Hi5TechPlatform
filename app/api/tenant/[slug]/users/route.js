@@ -1,149 +1,79 @@
-import crypto from "node:crypto"
 import { NextResponse } from "next/server"
-import { requireTenantApiAccess } from "@/lib/tenant/api-access"
-import { sendMail } from "@/lib/email/smtp"
-import { buildTenantInviteEmail } from "@/lib/email/invite-email"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-export async function GET(_request, { params }) {
-  try {
-    const { slug } = await params
-    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
+async function getTenantAndAdmin(slug) {
+  const supabase = await createServerSupabaseClient()
 
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     }
-
-    const { data: members, error: membersError } = await access.admin
-      .from("memberships")
-      .select(`
-        id,
-        role,
-        status,
-        user_id,
-        created_at,
-        profiles:user_id (
-          id,
-          email,
-          full_name,
-          initials
-        )
-      `)
-      .eq("tenant_id", access.tenant.id)
-      .order("created_at", { ascending: true })
-
-    if (membersError) throw membersError
-
-    const { data: invites, error: invitesError } = await access.admin
-      .from("tenant_invites")
-      .select("*")
-      .eq("tenant_id", access.tenant.id)
-      .order("created_at", { ascending: false })
-
-    if (invitesError) throw invitesError
-
-    const { data: groups, error: groupsError } = await access.admin
-      .from("groups")
-      .select("id, name")
-      .eq("tenant_id", access.tenant.id)
-      .order("name", { ascending: true })
-
-    if (groupsError) throw groupsError
-
-    return NextResponse.json({
-      ok: true,
-      members: members || [],
-      invites: invites || [],
-      groups: groups || [],
-      tenant: access.tenant,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to load tenant users" },
-      { status: 500 }
-    )
   }
+
+  const { data: tenant, error: tenantError } = await supabase
+    .from("tenants")
+    .select("id, slug")
+    .eq("slug", slug)
+    .single()
+
+  if (tenantError || !tenant) {
+    return {
+      error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }),
+    }
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("tenant_id", tenant.id)
+    .eq("user_id", user.id)
+    .single()
+
+  if (membershipError || !membership || !["owner", "admin"].includes(membership.role)) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    }
+  }
+
+  return { supabase, tenant, user }
 }
 
-export async function POST(request, { params }) {
-  try {
-    const { slug } = await params
-    const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
+export async function GET(_req, { params }) {
+  const { slug } = await params
+  const ctx = await getTenantAndAdmin(slug)
+  if (ctx.error) return ctx.error
 
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
-    }
+  const { supabase, tenant } = ctx
 
-    const body = await request.json()
-    const email = body.email?.trim()?.toLowerCase()
-    const role = body.role?.trim() || "technician"
-    const groupIds = Array.isArray(body.groupIds) ? body.groupIds : []
-
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 })
-    }
-
-    const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-
-    const { data: existingInvite } = await access.admin
-      .from("tenant_invites")
-      .select("id")
-      .eq("tenant_id", access.tenant.id)
-      .eq("email", email)
-      .eq("status", "pending")
-      .maybeSingle()
-
-    if (existingInvite) {
-      return NextResponse.json({ error: "A pending invite already exists for this email" }, { status: 400 })
-    }
-
-    const { data: inviterProfile } = await access.admin
-      .from("profiles")
-      .select("full_name, email")
-      .eq("id", access.user.id)
-      .maybeSingle()
-
-    const { data: invite, error: inviteError } = await access.admin
-      .from("tenant_invites")
-      .insert({
-        tenant_id: access.tenant.id,
-        email,
-        role,
-        invite_token: token,
-        invited_by: access.user.id,
-        group_ids: groupIds,
-        expires_at: expiresAt,
-        status: "pending",
-      })
-      .select("*")
-      .single()
-
-    if (inviteError) throw inviteError
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL
-    const inviteUrl = `${siteUrl}/invite/${token}`
-
-    const mail = buildTenantInviteEmail({
-      tenantName: access.tenant.name,
-      tenantSlug: access.tenant.slug,
-      inviteUrl,
-      invitedByName: inviterProfile?.full_name || inviterProfile?.email || "An administrator",
+  const { data, error } = await supabase
+    .from("memberships")
+    .select(`
+      user_id,
       role,
-      expiresAt,
-    })
+      profiles:user_id (
+        id,
+        full_name,
+        email,
+        avatar_url
+      )
+    `)
+    .eq("tenant_id", tenant.id)
+    .order("created_at", { ascending: false })
 
-    await sendMail({
-      to: email,
-      subject: mail.subject,
-      html: mail.html,
-      text: mail.text,
-    })
-
-    return NextResponse.json({ ok: true, invite })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to create invite" },
-      { status: 500 }
-    )
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  const users = (data || []).map((row) => ({
+    user_id: row.user_id,
+    role: row.role,
+    profiles: Array.isArray(row.profiles) ? row.profiles[0] || null : row.profiles || null,
+  }))
+
+  return NextResponse.json({ users })
 }
