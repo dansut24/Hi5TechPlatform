@@ -402,12 +402,13 @@ export default function ModuleContent({
     }
 
     return (
-  <AdminOverview
-    theme={theme}
-    tenantSlug={tenantSlug}
-    onNavigate={onNavigate}
-  />
-)
+      <AdminOverview
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
 
   if (moduleId === "analytics") {
     return (
