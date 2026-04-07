@@ -27,7 +27,13 @@ import SelfServiceIncidentDetail from "@/components/module-content/selfservice/i
 import SelfServiceRequestsList from "@/components/module-content/selfservice/requests-list"
 import SelfServiceRequestDetail from "@/components/module-content/selfservice/request-detail"
 
-import ControlWorkspace from "@/components/module-content/control/workspace"
+import ControlOverview from "@/components/module-content/control/overview"
+import ControlDevicesList from "@/components/module-content/control/devices-list"
+import ControlDeviceDetail from "@/components/module-content/control/device-detail"
+import ControlAlerts from "@/components/module-content/control/alerts"
+import ControlPatching from "@/components/module-content/control/patching"
+import ControlRemoteTools from "@/components/module-content/control/remote-tools"
+
 import AdminOverview from "@/components/module-content/admin/overview"
 
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
