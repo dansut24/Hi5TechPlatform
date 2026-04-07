@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react"
 import { AlertTriangle, RefreshCw } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+import { hasControlCapability } from "@/lib/permissions/control"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
 import ActionButton from "@/components/module-content/shared/action-button"
 import StatusChip from "@/components/module-content/shared/status-chip"
 
-export default function ControlAlerts({ theme, tenantSlug }) {
+export default function ControlAlerts({ theme, tenantSlug, permissionContext = {} }) {
+  const canViewAlerts = hasControlCapability(permissionContext, "control.alerts.view")
+  const canManageAlerts = hasControlCapability(permissionContext, "control.alerts.manage")
+
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -18,7 +22,7 @@ export default function ControlAlerts({ theme, tenantSlug }) {
 
     async function load() {
       try {
-        if (!tenantSlug) return
+        if (!tenantSlug || !canViewAlerts) return
         setLoading(true)
         setError("")
         const res = await fetch(`/api/tenant/${tenantSlug}/alerts`, { cache: "no-store" })
@@ -36,7 +40,18 @@ export default function ControlAlerts({ theme, tenantSlug }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug])
+  }, [tenantSlug, canViewAlerts])
+
+  if (!canViewAlerts) {
+    return (
+      <ShellCard theme={theme} className="p-5">
+        <div className="text-lg font-semibold">Access denied</div>
+        <div className={cn("mt-2 text-sm", theme.muted)}>
+          You do not have permission to view alerts.
+        </div>
+      </ShellCard>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -45,10 +60,17 @@ export default function ControlAlerts({ theme, tenantSlug }) {
         title="Alerts"
         subtitle="Current tenant operational issues and monitoring events."
         action={
-          <ActionButton theme={theme}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </ActionButton>
+          <div className="flex gap-2">
+            <ActionButton theme={theme}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </ActionButton>
+            {canManageAlerts ? (
+              <ActionButton theme={theme} secondary>
+                Manage Rules
+              </ActionButton>
+            ) : null}
+          </div>
         }
       />
 
