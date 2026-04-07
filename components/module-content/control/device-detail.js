@@ -11,9 +11,11 @@ import {
   Wrench,
 } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+import { hasControlCapability } from "@/lib/permissions/control"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
 import ActionButton from "@/components/module-content/shared/action-button"
+import ControlCapabilityGate from "@/components/control/capability-gate"
 
 function DeviceStatusChip({ status }) {
   const s = (status || "").toLowerCase()
@@ -48,7 +50,14 @@ function ActionTile({ theme, icon: Icon, title, description }) {
   )
 }
 
-export default function ControlDeviceDetail({ theme, tenantSlug, id }) {
+export default function ControlDeviceDetail({
+  theme,
+  tenantSlug,
+  id,
+  permissionContext = {},
+}) {
+  const canViewDevices = hasControlCapability(permissionContext, "control.devices.view")
+
   const [device, setDevice] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -58,7 +67,7 @@ export default function ControlDeviceDetail({ theme, tenantSlug, id }) {
 
     async function load() {
       try {
-        if (!tenantSlug || !id) return
+        if (!tenantSlug || !id || !canViewDevices) return
         setLoading(true)
         setError("")
 
@@ -81,7 +90,18 @@ export default function ControlDeviceDetail({ theme, tenantSlug, id }) {
     return () => {
       alive = false
     }
-  }, [tenantSlug, id])
+  }, [tenantSlug, id, canViewDevices])
+
+  if (!canViewDevices) {
+    return (
+      <ShellCard theme={theme} className="p-5">
+        <div className="text-lg font-semibold">Access denied</div>
+        <div className={cn("mt-2 text-sm", theme.muted)}>
+          You do not have permission to view device details.
+        </div>
+      </ShellCard>
+    )
+  }
 
   if (loading) return <div className="text-sm">Loading device...</div>
   if (error) return <div className="text-sm text-rose-400">{error}</div>
@@ -125,67 +145,77 @@ export default function ControlDeviceDetail({ theme, tenantSlug, id }) {
       </ShellCard>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <ActionTile
-          theme={theme}
-          icon={Monitor}
-          title="Remote session"
-          description="Launch remote desktop or view session support."
-        />
-        <ActionTile
-          theme={theme}
-          icon={TerminalSquare}
-          title="Shell"
-          description="Open terminal or command session tools."
-        />
-        <ActionTile
-          theme={theme}
-          icon={FolderOpen}
-          title="File browser"
-          description="Browse device files and folders."
-        />
-        <ActionTile
-          theme={theme}
-          icon={Upload}
-          title="Upload file"
-          description="Send files to the endpoint."
-        />
-        <ActionTile
-          theme={theme}
-          icon={Download}
-          title="Download file"
-          description="Retrieve files from the endpoint."
-        />
-        <ActionTile
-          theme={theme}
-          icon={Wrench}
-          title="Patching"
-          description="Review missing updates and remediation."
-        />
-      </div>
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.remote.use"
+        >
+          <ActionTile
+            theme={theme}
+            icon={Monitor}
+            title="Remote session"
+            description="Launch remote desktop or view session support."
+          />
+        </ControlCapabilityGate>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <ShellCard theme={theme} className="p-5">
-          <div className="text-lg font-semibold">System summary</div>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-              <div className={theme.muted}>Agent ID</div>
-              <div className="mt-1 break-all">{device.id}</div>
-            </div>
-            <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-              <div className={theme.muted}>Tenant</div>
-              <div className="mt-1">{tenantSlug}</div>
-            </div>
-          </div>
-        </ShellCard>
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.shell.use"
+        >
+          <ActionTile
+            theme={theme}
+            icon={TerminalSquare}
+            title="Shell"
+            description="Open terminal or command session tools."
+          />
+        </ControlCapabilityGate>
 
-        <ShellCard theme={theme} className="p-5">
-          <div className="text-lg font-semibold">Next steps</div>
-          <div className={cn("mt-4 space-y-3 text-sm", theme.muted)}>
-            <p>Add live remote actions here next.</p>
-            <p>Add patch detail and missing updates here.</p>
-            <p>Add device audit history and jobs here.</p>
-          </div>
-        </ShellCard>
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.files.use"
+        >
+          <ActionTile
+            theme={theme}
+            icon={FolderOpen}
+            title="File browser"
+            description="Browse device files and folders."
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.files.use"
+        >
+          <ActionTile
+            theme={theme}
+            icon={Upload}
+            title="Upload file"
+            description="Send files to the endpoint."
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.files.use"
+        >
+          <ActionTile
+            theme={theme}
+            icon={Download}
+            title="Download file"
+            description="Retrieve files from the endpoint."
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.patching.view"
+        >
+          <ActionTile
+            theme={theme}
+            icon={Wrench}
+            title="Patching"
+            description="Review missing updates and remediation."
+          />
+        </ControlCapabilityGate>
       </div>
     </div>
   )
