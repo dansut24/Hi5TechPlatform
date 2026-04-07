@@ -14,6 +14,7 @@ import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
 import ActionButton from "@/components/module-content/shared/action-button"
+import ControlCapabilityGate from "@/components/control/capability-gate"
 
 function QuickActionCard({ title, description, icon: Icon, theme, onClick }) {
   return (
@@ -33,7 +34,12 @@ function QuickActionCard({ title, description, icon: Icon, theme, onClick }) {
   )
 }
 
-export default function ControlOverview({ theme, tenantSlug, onNavigate }) {
+export default function ControlOverview({
+  theme,
+  tenantSlug,
+  onNavigate,
+  permissionContext = {},
+}) {
   const [devices, setDevices] = useState([])
   const [alerts, setAlerts] = useState([])
   const [loadingDevices, setLoadingDevices] = useState(true)
@@ -135,46 +141,74 @@ export default function ControlOverview({ theme, tenantSlug, onNavigate }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <QuickActionCard
-          theme={theme}
-          title="Devices"
-          description="Browse and manage managed endpoints."
-          icon={Monitor}
-          onClick={() => onNavigate?.("devices", "Devices")}
-        />
-        <QuickActionCard
-          theme={theme}
-          title="Alerts"
-          description="Review active operational issues."
-          icon={AlertTriangle}
-          onClick={() => onNavigate?.("alerts", "Alerts")}
-        />
-        <QuickActionCard
-          theme={theme}
-          title="Patching"
-          description="Track compliance and missing updates."
-          icon={Wrench}
-          onClick={() => onNavigate?.("patching", "Patching")}
-        />
-        <QuickActionCard
-          theme={theme}
-          title="Remote tools"
-          description="Launch support tools and sessions."
-          icon={TerminalSquare}
-          onClick={() => onNavigate?.("remote", "Remote Tools")}
-        />
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.devices.view"
+        >
+          <QuickActionCard
+            theme={theme}
+            title="Devices"
+            description="Browse and manage managed endpoints."
+            icon={Monitor}
+            onClick={() => onNavigate?.("devices", "Devices")}
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.alerts.view"
+        >
+          <QuickActionCard
+            theme={theme}
+            title="Alerts"
+            description="Review active operational issues."
+            icon={AlertTriangle}
+            onClick={() => onNavigate?.("alerts", "Alerts")}
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.patching.view"
+        >
+          <QuickActionCard
+            theme={theme}
+            title="Patching"
+            description="Track compliance and missing updates."
+            icon={Wrench}
+            onClick={() => onNavigate?.("patching", "Patching")}
+          />
+        </ControlCapabilityGate>
+
+        <ControlCapabilityGate
+          permissionContext={permissionContext}
+          capability="control.remote.use"
+        >
+          <QuickActionCard
+            theme={theme}
+            title="Remote tools"
+            description="Launch support tools and sessions."
+            icon={TerminalSquare}
+            onClick={() => onNavigate?.("remote", "Remote Tools")}
+          />
+        </ControlCapabilityGate>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
         <ShellCard theme={theme} className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Recent devices</div>
-            <button
-              onClick={() => onNavigate?.("devices", "Devices")}
-              className={cn("text-sm", theme.muted)}
+            <ControlCapabilityGate
+              permissionContext={permissionContext}
+              capability="control.devices.view"
             >
-              View all
-            </button>
+              <button
+                onClick={() => onNavigate?.("devices", "Devices")}
+                className={cn("text-sm", theme.muted)}
+              >
+                View all
+              </button>
+            </ControlCapabilityGate>
           </div>
 
           {loadingDevices ? (
@@ -207,57 +241,67 @@ export default function ControlOverview({ theme, tenantSlug, onNavigate }) {
         </ShellCard>
 
         <div className="space-y-6">
-          <ShellCard theme={theme} className="p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              <div className="text-lg font-semibold">Patch snapshot</div>
-            </div>
-
-            <div className="space-y-3">
-              <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-                <div className={cn("text-sm", theme.muted)}>Devices likely compliant</div>
-                <div className="mt-2 text-2xl font-semibold">
-                  {loadingDevices ? "…" : Math.max(devices.length - warningCount, 0)}
-                </div>
+          <ControlCapabilityGate
+            permissionContext={permissionContext}
+            capability="control.patching.view"
+          >
+            <ShellCard theme={theme} className="p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5" />
+                <div className="text-lg font-semibold">Patch snapshot</div>
               </div>
 
-              <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
-                <div className={cn("text-sm", theme.muted)}>Devices needing review</div>
-                <div className="mt-2 text-2xl font-semibold">
-                  {loadingDevices ? "…" : warningCount}
-                </div>
-              </div>
-            </div>
-          </ShellCard>
-
-          <ShellCard theme={theme} className="p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              <div className="text-lg font-semibold">Recent alerts</div>
-            </div>
-
-            {loadingAlerts ? (
-              <div className="text-sm">Loading alerts...</div>
-            ) : alerts.length === 0 ? (
-              <div className="text-sm">No alerts found.</div>
-            ) : (
               <div className="space-y-3">
-                {alerts.slice(0, 5).map((alert) => (
-                  <div
-                    key={alert.id}
-                    className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}
-                  >
-                    <div className="text-sm font-medium">
-                      {alert.title || alert.type || "Alert"}
-                    </div>
-                    <div className={cn("mt-1 text-sm", theme.muted)}>
-                      {alert.message || alert.description || "No description"}
-                    </div>
+                <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+                  <div className={cn("text-sm", theme.muted)}>Devices likely compliant</div>
+                  <div className="mt-2 text-2xl font-semibold">
+                    {loadingDevices ? "…" : Math.max(devices.length - warningCount, 0)}
                   </div>
-                ))}
+                </div>
+
+                <div className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+                  <div className={cn("text-sm", theme.muted)}>Devices needing review</div>
+                  <div className="mt-2 text-2xl font-semibold">
+                    {loadingDevices ? "…" : warningCount}
+                  </div>
+                </div>
               </div>
-            )}
-          </ShellCard>
+            </ShellCard>
+          </ControlCapabilityGate>
+
+          <ControlCapabilityGate
+            permissionContext={permissionContext}
+            capability="control.alerts.view"
+          >
+            <ShellCard theme={theme} className="p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                <div className="text-lg font-semibold">Recent alerts</div>
+              </div>
+
+              {loadingAlerts ? (
+                <div className="text-sm">Loading alerts...</div>
+              ) : alerts.length === 0 ? (
+                <div className="text-sm">No alerts found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.slice(0, 5).map((alert) => (
+                    <div
+                      key={alert.id}
+                      className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}
+                    >
+                      <div className="text-sm font-medium">
+                        {alert.title || alert.type || "Alert"}
+                      </div>
+                      <div className={cn("mt-1 text-sm", theme.muted)}>
+                        {alert.message || alert.description || "No description"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ShellCard>
+          </ControlCapabilityGate>
         </div>
       </div>
     </div>
