@@ -178,9 +178,69 @@ export default function ModuleContent({
 }
 
   if (moduleId === "control") {
-    return <ControlWorkspace theme={theme} tenantSlug={tenantSlug} />
+  if (activeNav === "overview") {
+    return (
+      <ControlOverview
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
   }
 
+  if (activeNav === "devices") {
+    return (
+      <ControlDevicesList
+        theme={theme}
+        tenantSlug={tenantSlug}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
+  if (activeNav.startsWith("device-")) {
+    const id = activeNav.replace("device-", "")
+    return (
+      <ControlDeviceDetail
+        theme={theme}
+        tenantSlug={tenantSlug}
+        id={id}
+      />
+    )
+  }
+
+  if (activeNav === "alerts") {
+    return <ControlAlerts theme={theme} tenantSlug={tenantSlug} />
+  }
+
+  if (activeNav === "patching") {
+    return <ControlPatching theme={theme} tenantSlug={tenantSlug} />
+  }
+
+  if (activeNav === "remote") {
+    return <ControlRemoteTools theme={theme} />
+  }
+
+  if (activeNav === "reports") {
+    return (
+      <SimpleWorkspace
+        theme={theme}
+        title="Control reports"
+        subtitle="Operational reporting for managed endpoints."
+        items={["Device health", "Patch compliance", "Alert volume", "Remote activity"]}
+        icon={BarChart3}
+      />
+    )
+  }
+
+  return (
+    <ControlOverview
+      theme={theme}
+      tenantSlug={tenantSlug}
+      onNavigate={onNavigate}
+    />
+  )
+}
   if (moduleId === "selfservice") {
   if (activeNav === "home") {
     return (
