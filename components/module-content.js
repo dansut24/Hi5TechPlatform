@@ -184,6 +184,7 @@ export default function ModuleContent({
         theme={theme}
         tenantSlug={tenantSlug}
         onNavigate={onNavigate}
+        permissionContext={tenantData?.permissionContext || {}}
       />
     )
   }
@@ -194,6 +195,7 @@ export default function ModuleContent({
         theme={theme}
         tenantSlug={tenantSlug}
         onNavigate={onNavigate}
+        permissionContext={tenantData?.permissionContext || {}}
       />
     )
   }
@@ -205,20 +207,38 @@ export default function ModuleContent({
         theme={theme}
         tenantSlug={tenantSlug}
         id={id}
+        permissionContext={tenantData?.permissionContext || {}}
       />
     )
   }
 
   if (activeNav === "alerts") {
-    return <ControlAlerts theme={theme} tenantSlug={tenantSlug} />
+    return (
+      <ControlAlerts
+        theme={theme}
+        tenantSlug={tenantSlug}
+        permissionContext={tenantData?.permissionContext || {}}
+      />
+    )
   }
 
   if (activeNav === "patching") {
-    return <ControlPatching theme={theme} tenantSlug={tenantSlug} />
+    return (
+      <ControlPatching
+        theme={theme}
+        tenantSlug={tenantSlug}
+        permissionContext={tenantData?.permissionContext || {}}
+      />
+    )
   }
 
   if (activeNav === "remote") {
-    return <ControlRemoteTools theme={theme} />
+    return (
+      <ControlRemoteTools
+        theme={theme}
+        permissionContext={tenantData?.permissionContext || {}}
+      />
+    )
   }
 
   if (activeNav === "reports") {
@@ -238,6 +258,7 @@ export default function ModuleContent({
       theme={theme}
       tenantSlug={tenantSlug}
       onNavigate={onNavigate}
+      permissionContext={tenantData?.permissionContext || {}}
     />
   )
 }
