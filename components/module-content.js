@@ -12,6 +12,7 @@ import BrandingSettings from "@/components/admin/branding-settings"
 import UsersManagement from "@/components/admin/users-management"
 import GroupsManagement from "@/components/admin/groups-management"
 import ModulePermissions from "@/components/admin/module-permissions"
+import ControlCapabilitiesManager from "@/components/admin/control-capabilities-manager"
 
 import ITSMDashboard from "@/components/module-content/itsm/dashboard"
 import ITSMIncidentsList from "@/components/module-content/itsm/incidents-list"
@@ -35,7 +36,6 @@ import ControlPatching from "@/components/module-content/control/patching"
 import ControlRemoteTools from "@/components/module-content/control/remote-tools"
 
 import AdminOverview from "@/components/module-content/admin/overview"
-
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
 const knowledgeArticles = [
@@ -53,8 +53,129 @@ export default function ModuleContent({
   tenantData,
   onNavigate,
 }) {
+  const permissionContext = tenantData?.permissionContext || {}
+
   if (moduleId === "itsm") {
-  if (activeNav === "dashboard") {
+    if (activeNav === "dashboard") {
+      return (
+        <ITSMDashboard
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "incidents") {
+      return (
+        <ITSMIncidentsList
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "requests") {
+      return (
+        <ITSMRequestsList
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "new-incident") {
+      return <ITSMIncidentForm theme={theme} tenantSlug={tenantSlug} />
+    }
+
+    if (activeNav === "new-request") {
+      return <ITSMRequestForm theme={theme} tenantSlug={tenantSlug} />
+    }
+
+    if (activeNav.startsWith("itsm-incident-")) {
+      const id = activeNav.replace("itsm-incident-", "")
+      return (
+        <ITSMIncidentDetail
+          theme={theme}
+          tenantSlug={tenantSlug}
+          id={id}
+        />
+      )
+    }
+
+    if (activeNav.startsWith("itsm-request-")) {
+      const id = activeNav.replace("itsm-request-", "")
+      return (
+        <ITSMRequestDetail
+          theme={theme}
+          tenantSlug={tenantSlug}
+          id={id}
+        />
+      )
+    }
+
+    if (activeNav === "changes") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Change management"
+          subtitle="Plan risk, approvals, implementation windows, and backout plans."
+          items={["CAB schedule", "Approval gates", "Implementation plan", "Backout plan"]}
+          icon={Workflow}
+        />
+      )
+    }
+
+    if (activeNav === "problems") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Problem management"
+          subtitle="Root cause analysis, known errors, and proactive prevention."
+          items={["Known errors", "RCA workbench", "Trend correlation", "Problem backlog"]}
+          icon={AlertTriangle}
+        />
+      )
+    }
+
+    if (activeNav === "assets") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Assets"
+          subtitle="Endpoints, servers, and estate insight."
+          items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]}
+          icon={Monitor}
+        />
+      )
+    }
+
+    if (activeNav === "knowledge") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Knowledge"
+          subtitle="Search and publish helpful documentation."
+          items={knowledgeArticles}
+          icon={BookOpen}
+        />
+      )
+    }
+
+    if (activeNav === "reports") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Reports"
+          subtitle="Operational reporting and insights."
+          items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]}
+          icon={BarChart3}
+        />
+      )
+    }
+
     return (
       <ITSMDashboard
         theme={theme}
@@ -64,206 +185,181 @@ export default function ModuleContent({
     )
   }
 
-  if (activeNav === "incidents") {
-    return (
-      <ITSMIncidentsList
-        theme={theme}
-        tenantSlug={tenantSlug}
-        onNavigate={onNavigate}
-      />
-    )
-  }
-
-  if (activeNav === "requests") {
-    return (
-      <ITSMRequestsList
-        theme={theme}
-        tenantSlug={tenantSlug}
-        onNavigate={onNavigate}
-      />
-    )
-  }
-
-  if (activeNav === "new-incident") {
-    return <ITSMIncidentForm theme={theme} tenantSlug={tenantSlug} />
-  }
-
-  if (activeNav === "new-request") {
-    return <ITSMRequestForm theme={theme} tenantSlug={tenantSlug} />
-  }
-
-  if (activeNav.startsWith("itsm-incident-")) {
-    const id = activeNav.replace("itsm-incident-", "")
-    return (
-      <ITSMIncidentDetail
-        theme={theme}
-        tenantSlug={tenantSlug}
-        id={id}
-      />
-    )
-  }
-
-  if (activeNav.startsWith("itsm-request-")) {
-    const id = activeNav.replace("itsm-request-", "")
-    return (
-      <ITSMRequestDetail
-        theme={theme}
-        tenantSlug={tenantSlug}
-        id={id}
-      />
-    )
-  }
-
-  if (activeNav === "changes") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Change management"
-        subtitle="Plan risk, approvals, implementation windows, and backout plans."
-        items={["CAB schedule", "Approval gates", "Implementation plan", "Backout plan"]}
-        icon={Workflow}
-      />
-    )
-  }
-
-  if (activeNav === "problems") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Problem management"
-        subtitle="Root cause analysis, known errors, and proactive prevention."
-        items={["Known errors", "RCA workbench", "Trend correlation", "Problem backlog"]}
-        icon={AlertTriangle}
-      />
-    )
-  }
-
-  if (activeNav === "assets") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Assets"
-        subtitle="Endpoints, servers, and estate insight."
-        items={["DC-SQL-01", "FW-EDGE-02", "LON-LT-1844", "APP-ERP-03"]}
-        icon={Monitor}
-      />
-    )
-  }
-
-  if (activeNav === "knowledge") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Knowledge"
-        subtitle="Search and publish helpful documentation."
-        items={knowledgeArticles}
-        icon={BookOpen}
-      />
-    )
-  }
-
-  if (activeNav === "reports") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Reports"
-        subtitle="Operational reporting and insights."
-        items={["Service volume", "SLA trends", "Team performance", "Backlog analysis"]}
-        icon={BarChart3}
-      />
-    )
-  }
-
-  return <ITSMDashboard theme={theme} tenantSlug={tenantSlug} onNavigate={onNavigate} />
-}
-
   if (moduleId === "control") {
-  if (activeNav === "overview") {
+    if (activeNav === "overview") {
+      return (
+        <ControlOverview
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav === "devices") {
+      return (
+        <ControlDevicesList
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav.startsWith("device-")) {
+      const id = activeNav.replace("device-", "")
+      return (
+        <ControlDeviceDetail
+          theme={theme}
+          tenantSlug={tenantSlug}
+          id={id}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav === "alerts") {
+      return (
+        <ControlAlerts
+          theme={theme}
+          tenantSlug={tenantSlug}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav === "patching") {
+      return (
+        <ControlPatching
+          theme={theme}
+          tenantSlug={tenantSlug}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav === "remote") {
+      return (
+        <ControlRemoteTools
+          theme={theme}
+          permissionContext={permissionContext}
+        />
+      )
+    }
+
+    if (activeNav === "reports") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Control reports"
+          subtitle="Operational reporting for managed endpoints."
+          items={["Device health", "Patch compliance", "Alert volume", "Remote activity"]}
+          icon={BarChart3}
+        />
+      )
+    }
+
     return (
       <ControlOverview
         theme={theme}
         tenantSlug={tenantSlug}
         onNavigate={onNavigate}
-        permissionContext={tenantData?.permissionContext || {}}
+        permissionContext={permissionContext}
       />
     )
   }
 
-  if (activeNav === "devices") {
-    return (
-      <ControlDevicesList
-        theme={theme}
-        tenantSlug={tenantSlug}
-        onNavigate={onNavigate}
-        permissionContext={tenantData?.permissionContext || {}}
-      />
-    )
-  }
-
-  if (activeNav.startsWith("device-")) {
-    const id = activeNav.replace("device-", "")
-    return (
-      <ControlDeviceDetail
-        theme={theme}
-        tenantSlug={tenantSlug}
-        id={id}
-        permissionContext={tenantData?.permissionContext || {}}
-      />
-    )
-  }
-
-  if (activeNav === "alerts") {
-    return (
-      <ControlAlerts
-        theme={theme}
-        tenantSlug={tenantSlug}
-        permissionContext={tenantData?.permissionContext || {}}
-      />
-    )
-  }
-
-  if (activeNav === "patching") {
-    return (
-      <ControlPatching
-        theme={theme}
-        tenantSlug={tenantSlug}
-        permissionContext={tenantData?.permissionContext || {}}
-      />
-    )
-  }
-
-  if (activeNav === "remote") {
-    return (
-      <ControlRemoteTools
-        theme={theme}
-        permissionContext={tenantData?.permissionContext || {}}
-      />
-    )
-  }
-
-  if (activeNav === "reports") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Control reports"
-        subtitle="Operational reporting for managed endpoints."
-        items={["Device health", "Patch compliance", "Alert volume", "Remote activity"]}
-        icon={BarChart3}
-      />
-    )
-  }
-
-  return (
-    <ControlOverview
-      theme={theme}
-      tenantSlug={tenantSlug}
-      onNavigate={onNavigate}
-      permissionContext={tenantData?.permissionContext || {}}
-    />
-  )
-}
   if (moduleId === "selfservice") {
-  if (activeNav === "home") {
+    if (activeNav === "home") {
+      return (
+        <SelfServiceOverview
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "tickets") {
+      return (
+        <SelfServiceIncidentsList
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "requests") {
+      return (
+        <SelfServiceRequestsList
+          theme={theme}
+          tenantSlug={tenantSlug}
+          onNavigate={onNavigate}
+        />
+      )
+    }
+
+    if (activeNav === "raise-incident") {
+      return (
+        <ITSMIncidentForm
+          theme={theme}
+          tenantSlug={tenantSlug}
+          heading="Raise an incident"
+          subtitle="Tell us what is broken and we will get it logged."
+          submitLabel="Submit incident"
+        />
+      )
+    }
+
+    if (activeNav === "new-request") {
+      return (
+        <ITSMRequestForm
+          theme={theme}
+          tenantSlug={tenantSlug}
+          heading="Request something"
+          subtitle="Request software, hardware, access, or onboarding help."
+          submitLabel="Submit request"
+        />
+      )
+    }
+
+    if (activeNav.startsWith("incident-")) {
+      const id = activeNav.replace("incident-", "")
+      return (
+        <SelfServiceIncidentDetail
+          theme={theme}
+          tenantSlug={tenantSlug}
+          id={id}
+        />
+      )
+    }
+
+    if (activeNav.startsWith("request-")) {
+      const id = activeNav.replace("request-", "")
+      return (
+        <SelfServiceRequestDetail
+          theme={theme}
+          tenantSlug={tenantSlug}
+          id={id}
+        />
+      )
+    }
+
+    if (activeNav === "knowledge") {
+      return (
+        <SimpleWorkspace
+          theme={theme}
+          title="Knowledge"
+          subtitle="Search and browse helpful articles."
+          items={knowledgeArticles}
+          icon={BookOpen}
+        />
+      )
+    }
+
     return (
       <SelfServiceOverview
         theme={theme}
@@ -272,93 +368,6 @@ export default function ModuleContent({
       />
     )
   }
-
-  if (activeNav === "tickets") {
-    return (
-      <SelfServiceIncidentsList
-        theme={theme}
-        tenantSlug={tenantSlug}
-        onNavigate={onNavigate}
-      />
-    )
-  }
-
-  if (activeNav === "requests") {
-    return (
-      <SelfServiceRequestsList
-        theme={theme}
-        tenantSlug={tenantSlug}
-        onNavigate={onNavigate}
-      />
-    )
-  }
-
-  if (activeNav === "raise-incident") {
-    return (
-      <ITSMIncidentForm
-        theme={theme}
-        tenantSlug={tenantSlug}
-        heading="Raise an incident"
-        subtitle="Tell us what is broken and we will get it logged."
-        submitLabel="Submit incident"
-      />
-    )
-  }
-
-  if (activeNav === "new-request") {
-    return (
-      <ITSMRequestForm
-        theme={theme}
-        tenantSlug={tenantSlug}
-        heading="Request something"
-        subtitle="Request software, hardware, access, or onboarding help."
-        submitLabel="Submit request"
-      />
-    )
-  }
-
-  if (activeNav.startsWith("incident-")) {
-    const id = activeNav.replace("incident-", "")
-    return (
-      <SelfServiceIncidentDetail
-        theme={theme}
-        tenantSlug={tenantSlug}
-        id={id}
-      />
-    )
-  }
-
-  if (activeNav.startsWith("request-")) {
-    const id = activeNav.replace("request-", "")
-    return (
-      <SelfServiceRequestDetail
-        theme={theme}
-        tenantSlug={tenantSlug}
-        id={id}
-      />
-    )
-  }
-
-  if (activeNav === "knowledge") {
-    return (
-      <SimpleWorkspace
-        theme={theme}
-        title="Knowledge"
-        subtitle="Search and browse helpful articles."
-        items={knowledgeArticles}
-        icon={BookOpen}
-      />
-    )
-  }
-
-  return (
-    <SelfServiceOverview
-      theme={theme}
-      tenantSlug={tenantSlug}
-      onNavigate={onNavigate}
-    />
-  )
-}
 
   if (moduleId === "admin") {
     if (activeNav === "users") {
@@ -371,6 +380,15 @@ export default function ModuleContent({
 
     if (activeNav === "permissions") {
       return <ModulePermissions tenantSlug={tenantSlug} theme={theme} />
+    }
+
+    if (activeNav === "control-capabilities") {
+      return (
+        <ControlCapabilitiesManager
+          tenantSlug={tenantSlug}
+          theme={theme}
+        />
+      )
     }
 
     if (activeNav === "branding") {
