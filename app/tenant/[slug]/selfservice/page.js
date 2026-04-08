@@ -11,6 +11,7 @@ export default async function TenantSelfServicePage({ params }) {
     <AppShell
       initialView="app"
       forcedModule="selfservice"
+      initialNav="home"
       tenantSlug={slug}
       tenantName={access.tenant?.name || slug}
       branding={branding}
