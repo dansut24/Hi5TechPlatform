@@ -90,7 +90,6 @@ export const navByModule = {
 
   selfservice: [
     { id: "home", label: "Home", icon: LayoutDashboard },
-    { id: "catalog", label: "Catalog", icon: Grid3X3 },
     { id: "tickets", label: "My Tickets", icon: Ticket },
     { id: "requests", label: "My Requests", icon: ClipboardList },
     { id: "knowledge", label: "Knowledge", icon: BookOpen },
@@ -106,7 +105,6 @@ export const navByModule = {
     { id: "groups", label: "Groups", icon: Users },
     { id: "permissions", label: "Module Permissions", icon: Lock },
     { id: "control-capabilities", label: "Control Permissions", icon: Shield },
-    { id: "security", label: "Security", icon: Shield },
   ],
 
   analytics: [
