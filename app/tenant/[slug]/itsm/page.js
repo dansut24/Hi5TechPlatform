@@ -11,6 +11,7 @@ export default async function TenantItsmPage({ params }) {
     <AppShell
       initialView="app"
       forcedModule="itsm"
+      initialNav="dashboard"
       tenantSlug={slug}
       tenantName={access.tenant?.name || slug}
       branding={branding}
