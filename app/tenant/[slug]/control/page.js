@@ -11,6 +11,7 @@ export default async function TenantControlPage({ params }) {
     <AppShell
       initialView="app"
       forcedModule="control"
+      initialNav="overview"
       tenantSlug={slug}
       tenantName={access.tenant?.name || slug}
       branding={branding}
