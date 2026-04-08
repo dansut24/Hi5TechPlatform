@@ -1,7 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Minus, Plus, Search, ShoppingBasket, Trash2 } from "lucide-react"
+import {
+  Minus,
+  Plus,
+  Search,
+  ShoppingBasket,
+  Trash2,
+  X,
+} from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
@@ -27,6 +34,123 @@ function CatalogCard({ item, theme, onAdd }) {
   )
 }
 
+function BasketContents({
+  theme,
+  basket,
+  requestedFor,
+  setRequestedFor,
+  justification,
+  setJustification,
+  updateQuantity,
+  updateItemNotes,
+  removeItem,
+  submitBasket,
+  saving,
+}) {
+  return (
+    <>
+      <div className="mb-4 flex items-center gap-2">
+        <ShoppingBasket className="h-5 w-5" />
+        <div className="text-lg font-semibold">Basket</div>
+      </div>
+
+      {basket.length === 0 ? (
+        <div className="text-sm">No items added yet.</div>
+      ) : (
+        <div className="space-y-4">
+          {basket.map((entry) => (
+            <div
+              key={entry.catalog_item_id}
+              className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-sm font-medium">{entry.item_name}</div>
+                <button onClick={() => removeItem(entry.catalog_item_id)}>
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    updateQuantity(entry.catalog_item_id, entry.quantity - 1)
+                  }
+                  className={cn("rounded-xl border p-2", theme.card)}
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <div className="min-w-[32px] text-center text-sm">{entry.quantity}</div>
+                <button
+                  onClick={() =>
+                    updateQuantity(entry.catalog_item_id, entry.quantity + 1)
+                  }
+                  className={cn("rounded-xl border p-2", theme.card)}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              <textarea
+                value={entry.notes}
+                onChange={(e) =>
+                  updateItemNotes(entry.catalog_item_id, e.target.value)
+                }
+                placeholder="Item notes"
+                className={cn(
+                  "mt-3 min-h-[84px] w-full rounded-2xl border px-4 py-3 text-sm outline-none",
+                  theme.input
+                )}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={cn("mt-6 border-t pt-6", theme.line)}>
+        <div className="text-lg font-semibold">Checkout</div>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className={cn("mb-2 text-sm", theme.muted)}>Requested for</div>
+            <input
+              value={requestedFor}
+              onChange={(e) => setRequestedFor(e.target.value)}
+              placeholder="Your name or the person this is for"
+              className={cn(
+                "h-11 w-full rounded-2xl border px-4 text-sm outline-none",
+                theme.input
+              )}
+            />
+          </div>
+
+          <div>
+            <div className={cn("mb-2 text-sm", theme.muted)}>
+              Business justification
+            </div>
+            <textarea
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              placeholder="Why is this needed?"
+              className={cn(
+                "min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none",
+                theme.input
+              )}
+            />
+          </div>
+
+          <ActionButton
+            theme={theme}
+            onClick={submitBasket}
+            disabled={saving || basket.length === 0}
+          >
+            {saving ? "Submitting..." : "Submit request"}
+          </ActionButton>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   const [categories, setCategories] = useState([])
   const [items, setItems] = useState([])
@@ -39,6 +163,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
+  const [mobileBasketOpen, setMobileBasketOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -76,12 +201,18 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
       const matchesCategory =
         selectedCategory === "all" || item.category_id === selectedCategory
 
-      const haystack = `${item.name} ${item.short_description || ""} ${item.full_description || ""}`.toLowerCase()
+      const haystack =
+        `${item.name} ${item.short_description || ""} ${item.full_description || ""}`.toLowerCase()
       const matchesQuery = haystack.includes(query.toLowerCase())
 
       return matchesCategory && matchesQuery
     })
   }, [items, selectedCategory, query])
+
+  const basketItemCount = useMemo(
+    () => basket.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    [basket]
+  )
 
   const addToBasket = (item) => {
     setBasket((prev) => {
@@ -107,7 +238,9 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
 
   const updateQuantity = (catalogItemId, nextQty) => {
     if (nextQty <= 0) {
-      setBasket((prev) => prev.filter((entry) => entry.catalog_item_id !== catalogItemId))
+      setBasket((prev) =>
+        prev.filter((entry) => entry.catalog_item_id !== catalogItemId)
+      )
       return
     }
 
@@ -123,15 +256,15 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   const updateItemNotes = (catalogItemId, notes) => {
     setBasket((prev) =>
       prev.map((entry) =>
-        entry.catalog_item_id === catalogItemId
-          ? { ...entry, notes }
-          : entry
+        entry.catalog_item_id === catalogItemId ? { ...entry, notes } : entry
       )
     )
   }
 
   const removeItem = (catalogItemId) => {
-    setBasket((prev) => prev.filter((entry) => entry.catalog_item_id !== catalogItemId))
+    setBasket((prev) =>
+      prev.filter((entry) => entry.catalog_item_id !== catalogItemId)
+    )
   }
 
   const submitBasket = async () => {
@@ -159,6 +292,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
       setBasket([])
       setRequestedFor("")
       setJustification("")
+      setMobileBasketOpen(false)
 
       if (json.request?.id) {
         onNavigate?.(`request-${json.request.id}`, json.request.number)
@@ -171,149 +305,167 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   }
 
   return (
-    <div className="space-y-6">
-      <SectionTitle
-        theme={theme}
-        title="Service catalog"
-        subtitle="Browse available services and add them to your basket before submitting."
-      />
+    <>
+      <div className="space-y-6">
+        <SectionTitle
+          theme={theme}
+          title="Service catalog"
+          subtitle="Browse available services and add them to your basket before submitting."
+        />
 
-      {error ? <div className="text-sm text-rose-400">{error}</div> : null}
-      {message ? <div className="text-sm text-emerald-400">{message}</div> : null}
+        {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+        {message ? <div className="text-sm text-emerald-400">{message}</div> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.45fr,0.95fr]">
-        <div className="space-y-6">
-          <ShellCard theme={theme} className="p-4">
-            <div className="grid gap-3 md:grid-cols-[1fr,220px]">
-              <div className="relative">
-                <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search catalog..."
-                  className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
-                />
+        <div className="grid gap-6 xl:grid-cols-[1.45fr,0.95fr]">
+          <div className="space-y-6">
+            <ShellCard theme={theme} className="p-4">
+              <div className="grid gap-3 md:grid-cols-[1fr,220px]">
+                <div className="relative">
+                  <Search
+                    className={cn(
+                      "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2",
+                      theme.muted
+                    )}
+                  />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search catalog..."
+                    className={cn(
+                      "h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none",
+                      theme.input
+                    )}
+                  />
+                </div>
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className={cn(
+                    "h-11 w-full rounded-2xl border px-4 text-sm outline-none",
+                    theme.input
+                  )}
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+            </ShellCard>
 
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
-              >
-                <option value="all">All categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-4 md:grid-cols-2">
+              {loading ? (
+                <div className="text-sm">Loading catalog...</div>
+              ) : filteredItems.length === 0 ? (
+                <div className="text-sm">No catalog items found.</div>
+              ) : (
+                filteredItems.map((item) => (
+                  <CatalogCard
+                    key={item.id}
+                    item={item}
+                    theme={theme}
+                    onAdd={addToBasket}
+                  />
+                ))
+              )}
             </div>
-          </ShellCard>
+          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {loading ? (
-              <div className="text-sm">Loading catalog...</div>
-            ) : filteredItems.length === 0 ? (
-              <div className="text-sm">No catalog items found.</div>
-            ) : (
-              filteredItems.map((item) => (
-                <CatalogCard
-                  key={item.id}
-                  item={item}
+          <div className="hidden xl:block">
+            <div className="sticky top-[calc(var(--header-height)+24px)]">
+              <ShellCard theme={theme} className="p-5">
+                <BasketContents
                   theme={theme}
-                  onAdd={addToBasket}
+                  basket={basket}
+                  requestedFor={requestedFor}
+                  setRequestedFor={setRequestedFor}
+                  justification={justification}
+                  setJustification={setJustification}
+                  updateQuantity={updateQuantity}
+                  updateItemNotes={updateItemNotes}
+                  removeItem={removeItem}
+                  submitBasket={submitBasket}
+                  saving={saving}
                 />
-              ))
-            )}
+              </ShellCard>
+            </div>
           </div>
         </div>
-
-        <div className="space-y-6">
-          <ShellCard theme={theme} className="p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <ShoppingBasket className="h-5 w-5" />
-              <div className="text-lg font-semibold">Basket</div>
-            </div>
-
-            {basket.length === 0 ? (
-              <div className="text-sm">No items added yet.</div>
-            ) : (
-              <div className="space-y-4">
-                {basket.map((entry) => (
-                  <div
-                    key={entry.catalog_item_id}
-                    className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-sm font-medium">{entry.item_name}</div>
-                      <button onClick={() => removeItem(entry.catalog_item_id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(entry.catalog_item_id, entry.quantity - 1)}
-                        className={cn("rounded-xl border p-2", theme.card)}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <div className="min-w-[32px] text-center text-sm">{entry.quantity}</div>
-                      <button
-                        onClick={() => updateQuantity(entry.catalog_item_id, entry.quantity + 1)}
-                        className={cn("rounded-xl border p-2", theme.card)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <textarea
-                      value={entry.notes}
-                      onChange={(e) => updateItemNotes(entry.catalog_item_id, e.target.value)}
-                      placeholder="Item notes"
-                      className={cn("mt-3 min-h-[84px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </ShellCard>
-
-          <ShellCard theme={theme} className="p-5">
-            <div className="text-lg font-semibold">Checkout</div>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <div className={cn("mb-2 text-sm", theme.muted)}>Requested for</div>
-                <input
-                  value={requestedFor}
-                  onChange={(e) => setRequestedFor(e.target.value)}
-                  placeholder="Your name or the person this is for"
-                  className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
-                />
-              </div>
-
-              <div>
-                <div className={cn("mb-2 text-sm", theme.muted)}>Business justification</div>
-                <textarea
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  placeholder="Why is this needed?"
-                  className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
-                />
-              </div>
-
-              <ActionButton
-                theme={theme}
-                onClick={submitBasket}
-                disabled={saving || basket.length === 0}
-              >
-                {saving ? "Submitting..." : "Submit request"}
-              </ActionButton>
-            </div>
-          </ShellCard>
-        </div>
       </div>
-    </div>
+
+      {basket.length > 0 ? (
+        <>
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-black/20 backdrop-blur xl:hidden">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">
+                  Basket ({basketItemCount} item{basketItemCount === 1 ? "" : "s"})
+                </div>
+                <div className="text-xs opacity-75">
+                  Review items and submit your request
+                </div>
+              </div>
+
+              <button
+                onClick={() => setMobileBasketOpen(true)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition",
+                  theme.resolved === "light"
+                    ? "bg-slate-950 text-white hover:bg-slate-800"
+                    : "bg-white text-slate-950 hover:bg-slate-200"
+                )}
+              >
+                <ShoppingBasket className="h-4 w-4" />
+                Open Basket
+              </button>
+            </div>
+          </div>
+
+          {mobileBasketOpen ? (
+            <div
+              className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-[2px] xl:hidden"
+              onClick={() => setMobileBasketOpen(false)}
+            >
+              <div
+                className={cn(
+                  "absolute inset-x-0 bottom-0 max-h-[88vh] overflow-auto rounded-t-[28px] border p-4 shadow-2xl",
+                  theme.panel
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="text-lg font-semibold">
+                    Basket ({basketItemCount})
+                  </div>
+                  <button
+                    onClick={() => setMobileBasketOpen(false)}
+                    className={cn("rounded-2xl p-2 transition", theme.hover)}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <BasketContents
+                  theme={theme}
+                  basket={basket}
+                  requestedFor={requestedFor}
+                  setRequestedFor={setRequestedFor}
+                  justification={justification}
+                  setJustification={setJustification}
+                  updateQuantity={updateQuantity}
+                  updateItemNotes={updateItemNotes}
+                  removeItem={removeItem}
+                  submitBasket={submitBasket}
+                  saving={saving}
+                />
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </>
   )
 }
