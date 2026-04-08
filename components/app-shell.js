@@ -13,6 +13,7 @@ import GlobalSearchModal from "@/components/global-search-modal"
 import ModuleSelector from "@/components/module-selector"
 import ModuleContent from "@/components/module-content"
 import DesktopSidebar from "@/components/desktop-sidebar"
+import SelfServiceHeader from "@/components/selfservice/selfservice-header"
 
 const moduleRouteMap = {
   "/itsm": "itsm",
@@ -69,9 +70,11 @@ export default function AppShell({
   const [activeTabId, setActiveTabId] = useState(initialNav)
 
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
-  const navItems = navByModule[currentModule]
+  const navItems = navByModule[currentModule] || []
   const currentModuleTitle =
     modules.find((module) => module.id === currentModule)?.title || "Workspace"
+
+  const isSelfService = currentModule === "selfservice"
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -104,7 +107,9 @@ export default function AppShell({
         return
       }
 
-      const firstPage = navByModule[moduleId][0]
+      const firstPage = navByModule[moduleId]?.[0]
+      if (!firstPage) return
+
       setAppState("app")
       setCurrentModule(moduleId)
       setActiveNav(firstPage.id)
@@ -172,9 +177,13 @@ export default function AppShell({
       return
     }
 
+    const firstPage = navByModule[moduleId]?.[0]
+    if (!firstPage) return
+
     setCurrentModule(moduleId)
-    const firstPage = navByModule[moduleId][0]
-    setOpenTabs([{ id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false }])
+    setOpenTabs([
+      { id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false },
+    ])
     setActiveTabId(firstPage.id)
     setActiveNav(firstPage.id)
     setAppState("app")
@@ -240,6 +249,13 @@ export default function AppShell({
       return
     }
 
+    if (isSelfService) {
+      setActiveNav(pageId)
+      setOpenTabs([{ id: pageId, pageId, label: label || pageId, closable: false }])
+      setActiveTabId(pageId)
+      return
+    }
+
     addNewTab(pageId, label || navItems.find((n) => n.id === pageId)?.label || pageId)
   }
 
@@ -274,14 +290,16 @@ export default function AppShell({
       />
 
       <div className="relative z-10">
-        <GlobalSearchModal
-          open={searchOpen}
-          onClose={() => setSearchOpen(false)}
-          query={searchQuery}
-          setQuery={setSearchQuery}
-          currentModuleTitle={currentModuleTitle}
-          theme={theme}
-        />
+        {!isSelfService ? (
+          <GlobalSearchModal
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            query={searchQuery}
+            setQuery={setSearchQuery}
+            currentModuleTitle={currentModuleTitle}
+            theme={theme}
+          />
+        ) : null}
 
         {appState === "modules" && (
           <ModuleSelector
@@ -297,52 +315,101 @@ export default function AppShell({
 
         {appState === "app" && (
           <>
-            {navMode === "sidebar" ? (
-              <DesktopSidebar
-                user={user}
-                navItems={navItems}
-                activeNav={activeNav}
-                onSwitchPage={switchPage}
-                onGoModules={goToModules}
-                onLogout={goToLogin}
-                collapsed={sidebarCollapsed}
-                setCollapsed={setSidebarCollapsed}
-                theme={theme}
-                tenantSlug={tenantSlug}
-                branding={branding}
-                tenantName={tenantName}
-              />
-            ) : null}
+            {!isSelfService ? (
+              <>
+                {navMode === "sidebar" ? (
+                  <DesktopSidebar
+                    user={user}
+                    navItems={navItems}
+                    activeNav={activeNav}
+                    onSwitchPage={switchPage}
+                    onGoModules={goToModules}
+                    onLogout={goToLogin}
+                    collapsed={sidebarCollapsed}
+                    setCollapsed={setSidebarCollapsed}
+                    theme={theme}
+                    tenantSlug={tenantSlug}
+                    branding={branding}
+                    tenantName={tenantName}
+                  />
+                ) : null}
 
-            <div className={desktopContentOffset}>
-              <HeaderBar
-                theme={theme}
-                currentModuleTitle={currentModuleTitle}
-                navItems={navItems}
-                activeNav={activeNav}
-                branding={branding}
-                tenantName={tenantName}
-              />
-              <TabBar
-                openTabs={openTabs}
-                activeTabId={activeTabId}
-                onActivate={activateTab}
-                onClose={closeTab}
-                onAdd={addNewTab}
-                navItems={navItems}
-                currentModuleTitle={currentModuleTitle}
-                theme={theme}
-              />
-              <main className="px-5 pb-28 pt-6 lg:px-8">
-                <div
-                  className="rounded-[30px]"
-                  style={{
-                    boxShadow: branding?.brandHex
-                      ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.06), 0 18px 50px rgba(0,0,0,0.08)"
-                      : undefined,
+                <div className={desktopContentOffset}>
+                  <HeaderBar
+                    theme={theme}
+                    currentModuleTitle={currentModuleTitle}
+                    navItems={navItems}
+                    activeNav={activeNav}
+                    branding={branding}
+                    tenantName={tenantName}
+                  />
+                  <TabBar
+                    openTabs={openTabs}
+                    activeTabId={activeTabId}
+                    onActivate={activateTab}
+                    onClose={closeTab}
+                    onAdd={addNewTab}
+                    navItems={navItems}
+                    currentModuleTitle={currentModuleTitle}
+                    theme={theme}
+                  />
+                  <main className="px-5 pb-28 pt-6 lg:px-8">
+                    <div
+                      className="rounded-[30px]"
+                      style={{
+                        boxShadow: branding?.brandHex
+                          ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.06), 0 18px 50px rgba(0,0,0,0.08)"
+                          : undefined,
+                      }}
+                    >
+                      <ModuleContent
+                        moduleId={currentModule}
+                        activeNav={activeNav}
+                        theme={theme}
+                        tenantSlug={tenantSlug}
+                        tenantData={tenantData}
+                        onNavigate={switchPage}
+                      />
+                    </div>
+                  </main>
+                </div>
+
+                <FloatingMenu
+                  navItems={navItems}
+                  activeNav={activeNav}
+                  onSwitchPage={switchPage}
+                  onGoModules={goToModules}
+                  onLogout={goToLogin}
+                  menuOpen={menuOpen}
+                  setMenuOpen={setMenuOpen}
+                  onOpenSearch={() => {
+                    setMenuOpen(false)
+                    setSearchOpen(true)
                   }}
-                >
-                                    <ModuleContent
+                  themeMode={themeMode}
+                  setThemeMode={setThemeMode}
+                  customTheme={customTheme}
+                  setCustomTheme={setCustomTheme}
+                  theme={theme}
+                  navMode={navMode}
+                  user={user}
+                  tenantSlug={tenantSlug}
+                  branding={branding}
+                  tenantName={tenantName}
+                />
+              </>
+            ) : (
+              <>
+                <SelfServiceHeader
+                  theme={theme}
+                  tenantName={tenantName}
+                  onNavigate={switchPage}
+                  onLogout={goToLogin}
+                  user={user}
+                />
+
+                <main className="mx-auto max-w-7xl px-5 pb-16 pt-6 lg:px-8">
+                  <ModuleContent
                     moduleId={currentModule}
                     activeNav={activeNav}
                     theme={theme}
@@ -350,33 +417,9 @@ export default function AppShell({
                     tenantData={tenantData}
                     onNavigate={switchPage}
                   />
-                </div>
-              </main>
-            </div>
-
-            <FloatingMenu
-              navItems={navItems}
-              activeNav={activeNav}
-              onSwitchPage={switchPage}
-              onGoModules={goToModules}
-              onLogout={goToLogin}
-              menuOpen={menuOpen}
-              setMenuOpen={setMenuOpen}
-              onOpenSearch={() => {
-                setMenuOpen(false)
-                setSearchOpen(true)
-              }}
-              themeMode={themeMode}
-              setThemeMode={setThemeMode}
-              customTheme={customTheme}
-              setCustomTheme={setCustomTheme}
-              theme={theme}
-              navMode={navMode}
-              user={user}
-              tenantSlug={tenantSlug}
-              branding={branding}
-              tenantName={tenantName}
-            />
+                </main>
+              </>
+            )}
           </>
         )}
       </div>
