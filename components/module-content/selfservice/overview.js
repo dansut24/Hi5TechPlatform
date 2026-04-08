@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, BookOpen, ClipboardList, Plus, Ticket } from "lucide-react"
+import { ArrowRight, BookOpen, ClipboardList, Ticket } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
@@ -106,7 +106,7 @@ export default function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
         <PortalActionCard
           theme={theme}
           title="Submit a Request"
-          description="Request software, hardware, access, onboarding help, or other services."
+          description="Request software, hardware, access, onboarding help, or another service."
           icon={ClipboardList}
           onClick={() => onNavigate?.("new-request", "Submit Request")}
         />
