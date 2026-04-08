@@ -4,14 +4,14 @@ import { useState } from "react"
 import {
   BookOpen,
   ClipboardList,
+  Grid3X3,
+  LayoutDashboard,
   LogOut,
   Menu,
   Search,
   Ticket,
   UserCircle2,
   X,
-  Grid3X3,
-  LayoutDashboard,
 } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
@@ -31,6 +31,8 @@ export default function SelfServiceHeader({
   user,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const goTo = (pageId, label) => {
     setMenuOpen(false)
@@ -43,13 +45,23 @@ export default function SelfServiceHeader({
         className={cn("sticky top-0 z-50 border-b backdrop-blur-xl", theme.header)}
         style={{ height: "var(--header-height)" }}
       >
-        <div className="flex h-full items-center gap-3 px-4 lg:px-6">
-          <div className="min-w-0 shrink-0">
-            <div className="text-sm font-semibold">{tenantName || "Portal"}</div>
-            <div className={cn("text-xs", theme.muted)}>Self Service</div>
+        <div className="flex h-full items-center justify-between gap-3 px-4 lg:px-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMenuOpen(true)}
+              className={cn("rounded-2xl p-2 transition lg:hidden", theme.hover)}
+              title="Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{tenantName || "Portal"}</div>
+              <div className={cn("text-xs", theme.muted)}>Self Service</div>
+            </div>
           </div>
 
-          <div className="mx-auto hidden max-w-2xl flex-1 md:block">
+          <div className="mx-auto hidden max-w-2xl flex-1 px-6 lg:block">
             <div className="relative">
               <Search
                 className={cn(
@@ -114,20 +126,10 @@ export default function SelfServiceHeader({
                 Knowledge
               </span>
             </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMenuOpen(true)}
-              className={cn("rounded-2xl p-2 transition lg:hidden", theme.hover)}
-              title="Menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
 
             <div
               className={cn(
-                "hidden items-center gap-2 rounded-2xl border px-3 py-2 md:flex",
+                "ml-2 flex items-center gap-2 rounded-2xl border px-3 py-2",
                 theme.card
               )}
             >
@@ -145,6 +147,16 @@ export default function SelfServiceHeader({
               <LogOut className="h-5 w-5" />
             </button>
           </div>
+
+          <div className="lg:hidden">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className={cn("rounded-2xl p-2 transition", theme.hover)}
+              title="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -155,12 +167,12 @@ export default function SelfServiceHeader({
         >
           <div
             className={cn(
-              "absolute right-4 top-4 w-[calc(100vw-32px)] max-w-sm rounded-[28px] border p-4 shadow-2xl",
+              "absolute left-0 top-0 h-full w-[88vw] max-w-sm border-r p-4 shadow-2xl",
               theme.panel
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">{tenantName || "Portal"}</div>
                 <div className={cn("text-xs", theme.muted)}>Self Service menu</div>
@@ -174,21 +186,10 @@ export default function SelfServiceHeader({
               </button>
             </div>
 
-            <div className="mb-4">
-              <div className="relative">
-                <Search
-                  className={cn(
-                    "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2",
-                    theme.muted
-                  )}
-                />
-                <input
-                  placeholder="Search..."
-                  className={cn(
-                    "h-10 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none",
-                    theme.input
-                  )}
-                />
+            <div className={cn("mb-4 rounded-2xl border p-3", theme.subCard, theme.line)}>
+              <div className="flex items-center gap-2">
+                <UserCircle2 className="h-4 w-4" />
+                <span className="truncate text-sm">{user?.name || "User"}</span>
               </div>
             </div>
 
@@ -246,6 +247,54 @@ export default function SelfServiceHeader({
                 <LogOut className="h-4 w-4" />
                 <span>Log out</span>
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {searchOpen ? (
+        <div
+          className="fixed inset-0 z-[85] bg-black/40 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setSearchOpen(false)}
+        >
+          <div
+            className={cn(
+              "absolute left-4 right-4 top-4 rounded-[28px] border p-4 shadow-2xl",
+              theme.panel
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold">Search</div>
+              <button
+                onClick={() => setSearchOpen(false)}
+                className={cn("rounded-2xl p-2 transition", theme.hover)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search
+                className={cn(
+                  "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2",
+                  theme.muted
+                )}
+              />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                placeholder="Search knowledge, tickets, and requests..."
+                className={cn(
+                  "h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none",
+                  theme.input
+                )}
+              />
+            </div>
+
+            <div className={cn("mt-3 text-xs", theme.muted)}>
+              Search UI is ready here. Next step is wiring this to knowledge and ticket results.
             </div>
           </div>
         </div>
