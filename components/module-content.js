@@ -36,6 +36,8 @@ import ControlPatching from "@/components/module-content/control/patching"
 import ControlRemoteTools from "@/components/module-content/control/remote-tools"
 
 import AdminOverview from "@/components/module-content/admin/overview"
+import SecuritySettings from "@/components/admin/security-settings"
+
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
 const knowledgeArticles = [
@@ -381,6 +383,9 @@ export default function ModuleContent({
     if (activeNav === "permissions") {
       return <ModulePermissions tenantSlug={tenantSlug} theme={theme} />
     }
+    if (activeNav === "security") {
+  return <SecuritySettings tenantSlug={tenantSlug} theme={theme} />
+}
 
     if (activeNav === "control-capabilities") {
       return (
@@ -400,6 +405,7 @@ export default function ModuleContent({
         />
       )
     }
+
 
     return (
       <AdminOverview
