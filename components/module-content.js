@@ -27,6 +27,7 @@ import SelfServiceIncidentsList from "@/components/module-content/selfservice/in
 import SelfServiceIncidentDetail from "@/components/module-content/selfservice/incident-detail"
 import SelfServiceRequestsList from "@/components/module-content/selfservice/requests-list"
 import SelfServiceRequestDetail from "@/components/module-content/selfservice/request-detail"
+import SelfServiceCatalog from "@/components/module-content/selfservice/catalog"
 
 import ControlOverview from "@/components/module-content/control/overview"
 import ControlDevicesList from "@/components/module-content/control/devices-list"
@@ -361,6 +362,16 @@ export default function ModuleContent({
         />
       )
     }
+
+    if (activeNav === "catalog") {
+  return (
+    <SelfServiceCatalog
+      theme={theme}
+      tenantSlug={tenantSlug}
+      onNavigate={onNavigate}
+    />
+  )
+}
 
     return (
       <SelfServiceOverview
