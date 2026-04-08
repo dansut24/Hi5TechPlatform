@@ -4,7 +4,6 @@ import { useState } from "react"
 import {
   BookOpen,
   ClipboardList,
-  Grid3X3,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -17,7 +16,6 @@ import { cn } from "@/components/shared-ui"
 
 const mobileNavItems = [
   { id: "home", label: "Home", icon: LayoutDashboard },
-  { id: "catalog", label: "Catalog", icon: Grid3X3 },
   { id: "tickets", label: "My Tickets", icon: Ticket },
   { id: "requests", label: "My Requests", icon: ClipboardList },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
@@ -85,16 +83,6 @@ export default function SelfServiceHeader({
               className={cn("rounded-2xl px-3 py-2 text-sm transition", theme.hover)}
             >
               Home
-            </button>
-
-            <button
-              onClick={() => onNavigate?.("catalog", "Catalog")}
-              className={cn("rounded-2xl px-3 py-2 text-sm transition", theme.hover)}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Grid3X3 className="h-4 w-4" />
-                Catalog
-              </span>
             </button>
 
             <button
