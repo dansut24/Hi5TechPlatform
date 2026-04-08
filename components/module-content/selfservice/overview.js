@@ -1,11 +1,33 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, ClipboardList } from "lucide-react"
+import { ArrowRight, BookOpen, ClipboardList, Plus, Ticket } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
-import ActionButton from "@/components/module-content/shared/action-button"
+
+function PortalActionCard({ theme, title, description, icon: Icon, onClick }) {
+  return (
+    <button onClick={onClick} className="group block w-full text-left">
+      <ShellCard theme={theme} className="h-full p-6 transition group-hover:scale-[1.01]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xl font-semibold tracking-tight">{title}</div>
+            <div className={cn("mt-2 max-w-md text-sm", theme.muted)}>{description}</div>
+          </div>
+          <div className={cn("rounded-2xl border p-3", theme.subCard, theme.line)}>
+            <Icon className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className={cn("mt-6 inline-flex items-center gap-2 text-sm", theme.muted)}>
+          <span>Open</span>
+          <ArrowRight className="h-4 w-4" />
+        </div>
+      </ShellCard>
+    </button>
+  )
+}
 
 export default function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
   const [summary, setSummary] = useState({
@@ -57,55 +79,50 @@ export default function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
     }
 
     load()
-
     return () => {
       alive = false
     }
   }, [tenantSlug])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SectionTitle
         theme={theme}
-        title="Self Service"
-        subtitle="Raise tickets, request services, and track your own activity."
-        action={
-          <div className="flex gap-2">
-            <ActionButton
-              theme={theme}
-              onClick={() => onNavigate?.("raise-incident", "Raise Incident")}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Incident
-            </ActionButton>
-
-            <ActionButton
-              theme={theme}
-              secondary
-              onClick={() => onNavigate?.("new-request", "New Request")}
-            >
-              <ClipboardList className="mr-2 h-4 w-4" />
-              New Request
-            </ActionButton>
-          </div>
-        }
+        title="How can we help?"
+        subtitle="Submit a new incident or request, then track progress below."
       />
 
       {error ? <div className="text-sm text-rose-400">{error}</div> : null}
 
+      <div className="grid gap-5 xl:grid-cols-2">
+        <PortalActionCard
+          theme={theme}
+          title="Submit an Incident"
+          description="Report something broken, unavailable, or not working as expected."
+          icon={Ticket}
+          onClick={() => onNavigate?.("raise-incident", "Submit Incident")}
+        />
+
+        <PortalActionCard
+          theme={theme}
+          title="Submit a Request"
+          description="Request software, hardware, access, onboarding help, or other services."
+          icon={ClipboardList}
+          onClick={() => onNavigate?.("new-request", "Submit Request")}
+        />
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          ["My Incidents", summary.myIncidents, () => onNavigate?.("tickets", "My Incidents")],
-          ["Open Incidents", summary.myOpenIncidents, () => onNavigate?.("tickets", "My Incidents")],
-          ["My Requests", summary.myRequests, () => onNavigate?.("requests", "My Requests")],
-          ["Open Requests", summary.myOpenRequests, () => onNavigate?.("requests", "My Requests")],
-        ].map(([label, value, onClick]) => (
-          <button key={label} onClick={onClick} className="text-left">
-            <ShellCard theme={theme} className="p-5 transition hover:scale-[1.01]">
-              <div className={cn("text-sm", theme.muted)}>{label}</div>
-              <div className="mt-2 text-3xl font-semibold">{loading ? "…" : value}</div>
-            </ShellCard>
-          </button>
+          ["My incidents", summary.myIncidents],
+          ["Open incidents", summary.myOpenIncidents],
+          ["My requests", summary.myRequests],
+          ["Open requests", summary.myOpenRequests],
+        ].map(([label, value]) => (
+          <ShellCard key={label} theme={theme} className="p-5">
+            <div className={cn("text-sm", theme.muted)}>{label}</div>
+            <div className="mt-2 text-3xl font-semibold">{loading ? "…" : value}</div>
+          </ShellCard>
         ))}
       </div>
 
@@ -114,7 +131,7 @@ export default function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Recent incidents</div>
             <button
-              onClick={() => onNavigate?.("tickets", "My Incidents")}
+              onClick={() => onNavigate?.("tickets", "My Tickets")}
               className={cn("text-sm", theme.muted)}
             >
               View all
@@ -180,6 +197,30 @@ export default function SelfServiceOverview({ theme, tenantSlug, onNavigate }) {
           )}
         </ShellCard>
       </div>
+
+      <ShellCard theme={theme} className="p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <BookOpen className="h-5 w-5" />
+          <div className="text-lg font-semibold">Helpful articles</div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            "How to restore BitLocker recovery access",
+            "New starter laptop provisioning workflow",
+            "Troubleshooting Azure SSO loop issues",
+            "VPN split tunnel support matrix",
+          ].map((article) => (
+            <button
+              key={article}
+              onClick={() => onNavigate?.("knowledge", "Knowledge")}
+              className={cn("rounded-2xl border p-4 text-left text-sm", theme.subCard, theme.line)}
+            >
+              {article}
+            </button>
+          ))}
+        </div>
+      </ShellCard>
     </div>
   )
 }
