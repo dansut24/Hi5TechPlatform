@@ -11,6 +11,7 @@ export default async function TenantAdminPage({ params }) {
     <AppShell
       initialView="app"
       forcedModule="admin"
+      initialNav="overview"
       tenantSlug={slug}
       tenantName={access.tenant?.name || slug}
       branding={branding}
