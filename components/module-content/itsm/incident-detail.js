@@ -1,109 +1,302 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { History, MessageSquare } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
-import CommentsPanel from "@/components/module-content/shared/comments-panel"
-import ActivityPanel from "@/components/module-content/shared/activity-panel"
-import StatusChip from "@/components/module-content/shared/status-chip"
-import PriorityChip from "@/components/module-content/shared/priority-chip"
+import ActionButton from "@/components/module-content/shared/action-button"
 
-const INCIDENT_STATUSES = ["new", "open", "pending", "in_progress", "resolved", "closed", "cancelled"]
-const INCIDENT_PRIORITIES = ["low", "medium", "high", "critical"]
+function StatusChip({ status, statuses = [] }) {
+  const statusRow = statuses.find((item) => item.key === status)
+  const category = statusRow?.category || "open"
+
+  let styles = "bg-slate-500/10 text-slate-400"
+  if (category === "open") styles = "bg-blue-500/10 text-blue-400"
+  if (category === "pending") styles = "bg-violet-500/10 text-violet-400"
+  if (category === "resolved") styles = "bg-emerald-500/10 text-emerald-400"
+  if (category === "closed") styles = "bg-slate-500/10 text-slate-300"
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles}`}>
+      {statusRow?.label || status || "Unknown"}
+    </span>
+  )
+}
+
+function PriorityChip({ priority }) {
+  const p = (priority || "").toLowerCase()
+
+  let styles = "bg-slate-500/10 text-slate-400"
+  if (p === "low") styles = "bg-emerald-500/10 text-emerald-400"
+  if (p === "medium") styles = "bg-blue-500/10 text-blue-400"
+  if (p === "high") styles = "bg-amber-500/10 text-amber-400"
+  if (p === "critical") styles = "bg-rose-500/10 text-rose-400"
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles}`}>
+      {priority || "unknown"}
+    </span>
+  )
+}
+
+function CommentsPanel({
+  theme,
+  comments = [],
+  loading = false,
+  error = "",
+  newComment,
+  setNewComment,
+  onSubmit,
+  saving = false,
+}) {
+  return (
+    <ShellCard theme={theme} className="p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <MessageSquare className="h-5 w-5" />
+        <div className="text-lg font-semibold">Incident comments</div>
+      </div>
+
+      {loading ? (
+        <div className="text-sm">Loading comments...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-400">{error}</div>
+      ) : comments.length === 0 ? (
+        <div className="text-sm">No comments yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {comments.map((comment) => (
+            <div key={comment.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">
+                    {comment.profiles?.full_name || comment.profiles?.email || "Unknown user"}
+                  </div>
+                  <div className={cn("mt-1 whitespace-pre-wrap text-sm", theme.muted)}>
+                    {comment.body}
+                  </div>
+                </div>
+                <div className={cn("shrink-0 text-xs", theme.muted2)}>
+                  {comment.created_at ? new Date(comment.created_at).toLocaleString() : ""}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={cn("mt-5 border-t pt-5", theme.line)}>
+        <div className={cn("mb-2 text-sm", theme.muted)}>Add comment</div>
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
+          placeholder="Add an update..."
+        />
+        <div className="mt-3 flex justify-end">
+          <ActionButton theme={theme} onClick={onSubmit} disabled={saving}>
+            {saving ? "Posting..." : "Post comment"}
+          </ActionButton>
+        </div>
+      </div>
+    </ShellCard>
+  )
+}
+
+function ActivityPanel({ theme, activity = [], loading = false, error = "" }) {
+  return (
+    <ShellCard theme={theme} className="p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <History className="h-5 w-5" />
+        <div className="text-lg font-semibold">Incident activity</div>
+      </div>
+
+      {loading ? (
+        <div className="text-sm">Loading activity...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-400">{error}</div>
+      ) : activity.length === 0 ? (
+        <div className="text-sm">No activity yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {activity.map((item) => (
+            <div key={item.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">{item.message || item.event_type}</div>
+                  <div className={cn("mt-1 text-xs", theme.muted)}>
+                    {item.profiles?.full_name || item.profiles?.email || "System"}
+                  </div>
+                </div>
+                <div className={cn("shrink-0 text-xs", theme.muted2)}>
+                  {item.created_at ? new Date(item.created_at).toLocaleString() : ""}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </ShellCard>
+  )
+}
 
 export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
   const [incident, setIncident] = useState(null)
+  const [workflow, setWorkflow] = useState({
+    statuses: [],
+    users: [],
+    groups: [],
+  })
+
   const [loading, setLoading] = useState(true)
+  const [workflowLoading, setWorkflowLoading] = useState(true)
   const [error, setError] = useState("")
+
   const [comments, setComments] = useState([])
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [commentsError, setCommentsError] = useState("")
+
   const [activity, setActivity] = useState([])
   const [activityLoading, setActivityLoading] = useState(true)
   const [activityError, setActivityError] = useState("")
+
   const [newComment, setNewComment] = useState("")
   const [savingComment, setSavingComment] = useState(false)
   const [savingUpdate, setSavingUpdate] = useState(false)
 
-  const loadIncident = async () => {
-    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}`, {
-      cache: "no-store",
-    })
+  const statusOptions = workflow.statuses || []
+  const userOptions = workflow.users || []
+  const groupOptions = workflow.groups || []
+
+  const assignedUserLabel = useMemo(() => {
+    const userRow = userOptions.find((row) => row.user_id === incident?.assigned_to)
+    return userRow?.profile?.full_name || userRow?.profile?.email || "Unassigned"
+  }, [userOptions, incident?.assigned_to])
+
+  const assignedGroupLabel = useMemo(() => {
+    const groupRow = groupOptions.find((row) => row.id === incident?.assignment_group_id)
+    return groupRow?.name || "No group"
+  }, [groupOptions, incident?.assignment_group_id])
+
+  async function loadIncident() {
+    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}`, { cache: "no-store" })
     const json = await res.json()
     if (!res.ok) throw new Error(json.error || "Failed to load incident")
     setIncident(json.incident)
   }
 
-  const loadComments = async () => {
-    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, {
-      cache: "no-store",
+  async function loadWorkflow() {
+    const res = await fetch(`/api/tenant/${tenantSlug}/itsm/incident-workflow`, { cache: "no-store" })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Failed to load workflow")
+    setWorkflow({
+      statuses: json.statuses || [],
+      users: json.users || [],
+      groups: json.groups || [],
     })
+  }
+
+  async function loadComments() {
+    const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, { cache: "no-store" })
     const json = await res.json()
     if (!res.ok) throw new Error(json.error || "Failed to load comments")
     setComments(json.comments || [])
   }
 
-  const loadActivity = async () => {
-    const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, {
-      cache: "no-store",
-    })
+  async function loadActivity() {
+    const res = await fetch(`/api/tenant/${tenantSlug}/activity/incident/${id}`, { cache: "no-store" })
     const json = await res.json()
     if (!res.ok) throw new Error(json.error || "Failed to load activity")
     setActivity(json.activity || [])
   }
 
   useEffect(() => {
-    async function load() {
+    let alive = true
+
+    async function run() {
       try {
         setLoading(true)
         setError("")
         await loadIncident()
       } catch (err) {
-        setError(err.message || "Failed to load incident")
+        if (alive) setError(err.message || "Failed to load incident")
       } finally {
-        setLoading(false)
+        if (alive) setLoading(false)
       }
     }
 
-    if (tenantSlug && id) load()
-  }, [id, tenantSlug])
+    if (tenantSlug && id) run()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, id])
 
   useEffect(() => {
+    let alive = true
+
+    async function run() {
+      try {
+        setWorkflowLoading(true)
+        await loadWorkflow()
+      } catch (err) {
+        if (alive) setError(err.message || "Failed to load workflow")
+      } finally {
+        if (alive) setWorkflowLoading(false)
+      }
+    }
+
+    if (tenantSlug) run()
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug])
+
+  useEffect(() => {
+    let alive = true
+
     async function run() {
       try {
         setCommentsLoading(true)
         setCommentsError("")
         await loadComments()
       } catch (err) {
-        setCommentsError(err.message || "Failed to load comments")
+        if (alive) setCommentsError(err.message || "Failed to load comments")
       } finally {
-        setCommentsLoading(false)
+        if (alive) setCommentsLoading(false)
       }
     }
 
     if (tenantSlug && id) run()
-  }, [id, tenantSlug])
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, id])
 
   useEffect(() => {
+    let alive = true
+
     async function run() {
       try {
         setActivityLoading(true)
         setActivityError("")
         await loadActivity()
       } catch (err) {
-        setActivityError(err.message || "Failed to load activity")
+        if (alive) setActivityError(err.message || "Failed to load activity")
       } finally {
-        setActivityLoading(false)
+        if (alive) setActivityLoading(false)
       }
     }
 
     if (tenantSlug && id) run()
-  }, [id, tenantSlug])
+    return () => {
+      alive = false
+    }
+  }, [tenantSlug, id])
 
   const saveField = async (patch) => {
     try {
       setSavingUpdate(true)
+      setError("")
 
       const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}`, {
         method: "PATCH",
@@ -112,10 +305,7 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
       })
 
       const json = await res.json()
-
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to update incident")
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to update incident")
 
       setIncident(json.incident)
       await loadActivity()
@@ -129,7 +319,6 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
   const submitComment = async () => {
     try {
       if (!newComment.trim()) return
-
       setSavingComment(true)
       setCommentsError("")
 
@@ -140,10 +329,7 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
       })
 
       const json = await res.json()
-
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to add comment")
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to add comment")
 
       setComments((prev) => [...prev, json.comment])
       setNewComment("")
@@ -155,13 +341,17 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
     }
   }
 
-  if (loading) return <div className="text-sm">Loading incident...</div>
+  if (loading || workflowLoading) return <div className="text-sm">Loading incident...</div>
   if (error && !incident) return <div className="text-sm text-rose-400">{error}</div>
   if (!incident) return null
 
   return (
     <div className="space-y-6">
-      <SectionTitle theme={theme} title={incident.number} subtitle="Incident details" />
+      <SectionTitle
+        theme={theme}
+        title={incident.number}
+        subtitle="Incident details and workflow"
+      />
 
       {error ? <div className="text-sm text-rose-400">{error}</div> : null}
 
@@ -177,49 +367,109 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
             <div className="whitespace-pre-wrap">{incident.description || "—"}</div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
-              <div className={cn("mb-1 text-sm", theme.muted)}>Status</div>
+              <div className={cn("mb-2", theme.muted)}>Status</div>
               <select
-                value={incident.status || "new"}
+                value={incident.status || ""}
                 onChange={(e) => saveField({ status: e.target.value })}
                 disabled={savingUpdate}
                 className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
               >
-                {INCIDENT_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
+                {statusOptions.map((status) => (
+                  <option key={status.id} value={status.key}>
+                    {status.label}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <div className={cn("mb-1 text-sm", theme.muted)}>Priority</div>
+              <div className={cn("mb-2", theme.muted)}>Priority</div>
               <select
                 value={incident.priority || "medium"}
                 onChange={(e) => saveField({ priority: e.target.value })}
                 disabled={savingUpdate}
                 className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
               >
-                {INCIDENT_PRIORITIES.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {priority}
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <div>
+              <div className={cn("mb-2", theme.muted)}>Assigned to</div>
+              <select
+                value={incident.assigned_to || ""}
+                onChange={(e) => saveField({ assigned_to: e.target.value || null })}
+                disabled={savingUpdate}
+                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+              >
+                <option value="">Unassigned</option>
+                {userOptions.map((userRow) => (
+                  <option key={userRow.user_id} value={userRow.user_id}>
+                    {userRow.profile?.full_name || userRow.profile?.email || userRow.user_id}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <div className={cn("mb-1 text-sm", theme.muted)}>Created</div>
-              <div className="pt-3">
-                {incident.created_at ? new Date(incident.created_at).toLocaleString() : "—"}
-              </div>
+              <div className={cn("mb-2", theme.muted)}>Assignment group</div>
+              <select
+                value={incident.assignment_group_id || ""}
+                onChange={(e) => saveField({ assignment_group_id: e.target.value || null })}
+                disabled={savingUpdate}
+                className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+              >
+                <option value="">No group</option>
+                {groupOptions.map((groupRow) => (
+                  <option key={groupRow.id} value={groupRow.id}>
+                    {groupRow.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <StatusChip status={incident.status} />
+          <div>
+            <div className={cn("mb-2", theme.muted)}>Resolution notes</div>
+            <textarea
+              value={incident.resolution_notes || ""}
+              onChange={(e) => setIncident((prev) => ({ ...prev, resolution_notes: e.target.value }))}
+              onBlur={() => saveField({ resolution_notes: incident.resolution_notes || "" })}
+              className={cn("min-h-[130px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
+              placeholder="Add investigation outcome or resolution details..."
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Created</div>
+              <div>{incident.created_at ? new Date(incident.created_at).toLocaleString() : "—"}</div>
+            </div>
+
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Resolved</div>
+              <div>{incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : "—"}</div>
+            </div>
+
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Closed</div>
+              <div>{incident.closed_at ? new Date(incident.closed_at).toLocaleString() : "—"}</div>
+            </div>
+
+            <div>
+              <div className={cn("mb-1", theme.muted)}>Current ownership</div>
+              <div>{assignedUserLabel}</div>
+              <div className={cn("mt-1 text-xs", theme.muted)}>{assignedGroupLabel}</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <StatusChip status={incident.status} statuses={statusOptions} />
             <PriorityChip priority={incident.priority} />
           </div>
         </div>
@@ -228,7 +478,6 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
       <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
         <CommentsPanel
           theme={theme}
-          title="Incident comments"
           comments={comments}
           loading={commentsLoading}
           error={commentsError}
@@ -240,7 +489,6 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
 
         <ActivityPanel
           theme={theme}
-          title="Incident activity"
           activity={activity}
           loading={activityLoading}
           error={activityError}
