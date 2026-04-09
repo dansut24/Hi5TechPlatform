@@ -339,6 +339,30 @@ export default function SelfServiceIncidentDetail({ theme, tenantSlug, id }) {
         </div>
       </ShellCard>
 
+      {incident.resolved_at ? (
+        <ShellCard theme={theme} className="p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="text-lg font-semibold">Resolution update</div>
+              <div className={cn("mt-1 text-sm", theme.muted)}>
+                This incident was marked as resolved on{" "}
+                {new Date(incident.resolved_at).toLocaleString()}.
+              </div>
+              <div className="mt-4 whitespace-pre-wrap text-sm">
+                {incident.resolution_notes || "No resolution notes were provided."}
+              </div>
+            </div>
+
+            {canReopen ? (
+              <ActionButton theme={theme} secondary onClick={reopenIncident} disabled={reopening}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {reopening ? "Reopening..." : "Still need help?"}
+              </ActionButton>
+            ) : null}
+          </div>
+        </ShellCard>
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
         <CommentsPanel
           theme={theme}
