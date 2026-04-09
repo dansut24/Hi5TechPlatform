@@ -106,6 +106,8 @@ export const navByModule = {
     { id: "permissions", label: "Module Permissions", icon: Lock },
     { id: "control-capabilities", label: "Control Permissions", icon: Shield },
     { id: "request-templates", label: "Request Templates", icon: ClipboardList },
+    { id: "catalog-categories", label: "Catalog Categories", icon: Grid3X3 },
+{ id: "catalog-items", label: "Catalog Items", icon: ClipboardList },
   ],
 
   analytics: [
