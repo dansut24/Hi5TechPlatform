@@ -1,131 +1,145 @@
 import { NextResponse } from "next/server"
-import { requireTenantApiAccess } from "@/lib/tenant/api-access"
-import { logActivity } from "@/lib/activity/log"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { sendIncidentRequesterCommentNotification } from "@/lib/itsm/notifications"
+import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
 
-async function attachProfiles(admin, rows, userIdField) {
-  const ids = [...new Set((rows || []).map((row) => row[userIdField]).filter(Boolean))]
-  if (!ids.length) {
-    return (rows || []).map((row) => ({ ...row, profiles: null }))
+async function getTenantAndRequester(slug) {
+  const supabase = await createServerSupabaseClient()
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
 
-  const { data: profiles, error } = await admin
-    .from("profiles")
-    .select("id, full_name, email")
-    .in("id", ids)
+  const { data: tenant, error: tenantError } = await supabase
+    .from("tenants")
+    .select("id, slug, name")
+    .eq("slug", slug)
+    .single()
 
-  if (error) throw error
-
-  const profileMap = new Map((profiles || []).map((p) => [p.id, p]))
-
-  return (rows || []).map((row) => ({
-    ...row,
-    profiles: row[userIdField] ? profileMap.get(row[userIdField]) || null : null,
-  }))
-}
-
-export async function GET(_request, { params }) {
-  try {
-    const { slug, id } = await params
-    const access = await requireTenantApiAccess(slug, "selfservice")
-
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
-    }
-
-    const { data: incident, error: incidentError } = await access.admin
-      .from("incidents")
-      .select("id")
-      .eq("id", id)
-      .eq("tenant_id", access.tenant.id)
-      .eq("created_by", access.user.id)
-      .maybeSingle()
-
-    if (incidentError) throw incidentError
-    if (!incident) {
-      return NextResponse.json({ error: "Incident not found" }, { status: 404 })
-    }
-
-    const { data, error } = await access.admin
-      .from("incident_comments")
-      .select("id, body, created_at, author_user_id")
-      .eq("incident_id", id)
-      .eq("tenant_id", access.tenant.id)
-      .order("created_at", { ascending: true })
-
-    if (error) throw error
-
-    const comments = await attachProfiles(access.admin, data || [], "author_user_id")
-
-    return NextResponse.json({ ok: true, comments })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to load comments" },
-      { status: 500 }
-    )
+  if (tenantError || !tenant) {
+    return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
   }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("memberships")
+    .select("user_id")
+    .eq("tenant_id", tenant.id)
+    .eq("user_id", user.id)
+    .single()
+
+  if (membershipError || !membership) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
+  }
+
+  return { supabase, tenant, user }
 }
 
-export async function POST(request, { params }) {
+export async function GET(_req, { params }) {
+  const { slug, id } = await params
+  const ctx = await getTenantAndRequester(slug)
+  if (ctx.error) return ctx.error
+
+  const { supabase, tenant, user } = ctx
+
+  const { data: incident, error: incidentError } = await supabase
+    .from("incidents")
+    .select("id")
+    .eq("tenant_id", tenant.id)
+    .eq("id", id)
+    .eq("created_by", user.id)
+    .single()
+
+  if (incidentError || !incident) {
+    return NextResponse.json({ error: "Incident not found" }, { status: 404 })
+  }
+
+  const { data, error } = await supabase
+    .from("incident_comments")
+    .select(`
+      *,
+      profiles:created_by (
+        id,
+        full_name,
+        email
+      )
+    `)
+    .eq("incident_id", id)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ comments: data || [] })
+}
+
+export async function POST(req, { params }) {
+  const { slug, id } = await params
+  const ctx = await getTenantAndRequester(slug)
+  if (ctx.error) return ctx.error
+
+  const { supabase, tenant, user } = ctx
+  const body = await req.json()
+
+  const commentBody = String(body.body || "").trim()
+  if (!commentBody) {
+    return NextResponse.json({ error: "Comment body is required" }, { status: 400 })
+  }
+
+  const { data: incident, error: incidentError } = await supabase
+    .from("incidents")
+    .select("*")
+    .eq("tenant_id", tenant.id)
+    .eq("id", id)
+    .eq("created_by", user.id)
+    .single()
+
+  if (incidentError || !incident) {
+    return NextResponse.json({ error: "Incident not found" }, { status: 404 })
+  }
+
+  const { data: comment, error } = await supabase
+    .from("incident_comments")
+    .insert({
+      incident_id: incident.id,
+      created_by: user.id,
+      body: commentBody,
+    })
+    .select(`
+      *,
+      profiles:created_by (
+        id,
+        full_name,
+        email
+      )
+    `)
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   try {
-    const { slug, id } = await params
-    const access = await requireTenantApiAccess(slug, "selfservice")
-
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
-    }
-
-    const body = await request.json()
-    const comment = body.body?.trim()
-
-    if (!comment) {
-      return NextResponse.json({ error: "Comment is required" }, { status: 400 })
-    }
-
-    const { data: incident, error: incidentError } = await access.admin
-      .from("incidents")
-      .select("id, number")
-      .eq("id", id)
-      .eq("tenant_id", access.tenant.id)
-      .eq("created_by", access.user.id)
-      .maybeSingle()
-
-    if (incidentError) throw incidentError
-    if (!incident) {
-      return NextResponse.json({ error: "Incident not found" }, { status: 404 })
-    }
-
-    const { data, error } = await access.admin
-      .from("incident_comments")
-      .insert({
-        incident_id: id,
-        tenant_id: access.tenant.id,
-        author_user_id: access.user.id,
-        body: comment,
-      })
-      .select("id, body, created_at, author_user_id")
-      .single()
-
-    if (error) throw error
-
-    const [commentWithProfile] = await attachProfiles(access.admin, [data], "author_user_id")
-
-    await logActivity({
-      tenantId: access.tenant.id,
-      entityType: "incident",
-      entityId: id,
-      eventType: "comment_added",
-      actorUserId: access.user.id,
-      message: `Comment added to ${incident.number}`,
-      metadata: {
-        comment_preview: comment.slice(0, 120),
-      },
+    const notifyTo = await getIncidentNotificationRecipient({
+      tenantId: tenant.id,
+      assignmentGroupId: incident.assignment_group_id,
+      assignedTo: incident.assigned_to,
     })
 
-    return NextResponse.json({ ok: true, comment: commentWithProfile })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to add comment" },
-      { status: 500 }
-    )
+    await sendIncidentRequesterCommentNotification({
+      tenantName: tenant.name || tenant.slug,
+      incident,
+      commentBody,
+      notifyTo,
+    })
+  } catch (notifyError) {
+    console.error("[itsm-email] requester comment notification failed", notifyError)
   }
+
+  return NextResponse.json({ comment })
 }
