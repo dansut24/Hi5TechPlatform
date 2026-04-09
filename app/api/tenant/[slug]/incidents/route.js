@@ -1,109 +1,134 @@
 import { NextResponse } from "next/server"
-import { requireTenantApiAccess } from "@/lib/tenant/api-access"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getTenantItsmSettingsByTenantId } from "@/lib/itsm/settings"
+import { sendIncidentCreatedEmail } from "@/lib/itsm/notifications"
 
-function nextIncidentNumber(existingCount) {
-  const n = Number(existingCount || 0) + 1
-  return `INC-${String(n).padStart(5, "0")}`
+function makeIncidentNumber() {
+  return `INC-${Date.now()}`
 }
 
-export async function GET(request, { params }) {
-  try {
-    const { slug } = await params
-    const access = await requireTenantApiAccess(slug, "itsm")
+async function getTenantAndMember(slug) {
+  const supabase = await createServerSupabaseClient()
 
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
-    }
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-    const { searchParams } = new URL(request.url)
-    const q = (searchParams.get("q") || "").trim().toLowerCase()
-
-    let query = access.admin
-      .from("incidents")
-      .select("*")
-      .eq("tenant_id", access.tenant.id)
-      .order("created_at", { ascending: false })
-
-    const { data, error } = await query
-
-    if (error) throw error
-
-    let incidents = data || []
-
-    if (q) {
-      incidents = incidents.filter((incident) =>
-        `${incident.number || ""} ${incident.short_description || ""} ${incident.priority || ""} ${incident.status || ""}`
-          .toLowerCase()
-          .includes(q)
-      )
-    }
-
-    return NextResponse.json({
-      ok: true,
-      incidents,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to load incidents" },
-      { status: 500 }
-    )
+  if (userError || !user) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
+
+  const { data: tenant, error: tenantError } = await supabase
+    .from("tenants")
+    .select("id, slug, name")
+    .eq("slug", slug)
+    .single()
+
+  if (tenantError || !tenant) {
+    return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("tenant_id", tenant.id)
+    .eq("user_id", user.id)
+    .single()
+
+  if (membershipError || !membership) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
+  }
+
+  return { supabase, tenant, membership, user }
 }
 
-export async function POST(request, { params }) {
+export async function GET(req, { params }) {
+  const { slug } = await params
+  const ctx = await getTenantAndMember(slug)
+  if (ctx.error) return ctx.error
+
+  const { supabase, tenant } = ctx
+  const { searchParams } = new URL(req.url)
+  const q = String(searchParams.get("q") || "").trim()
+
+  let query = supabase
+    .from("incidents")
+    .select("*")
+    .eq("tenant_id", tenant.id)
+    .order("created_at", { ascending: false })
+
+  if (q) {
+    query = query.or(`number.ilike.%${q}%,short_description.ilike.%${q}%,description.ilike.%${q}%`)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ incidents: data || [] })
+}
+
+export async function POST(req, { params }) {
+  const { slug } = await params
+  const ctx = await getTenantAndMember(slug)
+  if (ctx.error) return ctx.error
+
+  const { supabase, tenant, user } = ctx
+  const body = await req.json()
+
+  const shortDescription = String(body.shortDescription || body.short_description || "").trim()
+  const description = String(body.details || body.description || "").trim()
+  const priority = String(body.priority || "medium").trim()
+
+  if (!shortDescription) {
+    return NextResponse.json({ error: "Short description is required" }, { status: 400 })
+  }
+
+  const itsmSettings = await getTenantItsmSettingsByTenantId(tenant.id)
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const incidentPayload = {
+    tenant_id: tenant.id,
+    number: makeIncidentNumber(),
+    short_description: shortDescription,
+    description,
+    priority,
+    status: "new",
+    created_by: user.id,
+    assigned_to: null,
+    assignment_group_id: itsmSettings.default_triage_group_id || null,
+    submitted_by_email: profile?.email || user.email || null,
+    submitted_by_name: profile?.full_name || user.email || "Requester",
+  }
+
+  const { data: incident, error } = await supabase
+    .from("incidents")
+    .insert(incidentPayload)
+    .select()
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   try {
-    const { slug } = await params
-    const access = await requireTenantApiAccess(slug, "itsm")
-
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
-    }
-
-    const body = await request.json()
-    const shortDescription = body.shortDescription?.trim()
-    const details = body.details?.trim() || null
-    const priority = body.priority?.trim() || "medium"
-
-    if (!shortDescription) {
-      return NextResponse.json(
-        { error: "Short description is required" },
-        { status: 400 }
-      )
-    }
-
-    const { count, error: countError } = await access.admin
-      .from("incidents")
-      .select("*", { count: "exact", head: true })
-      .eq("tenant_id", access.tenant.id)
-
-    if (countError) throw countError
-
-    const number = nextIncidentNumber(count)
-
-    const { data: incident, error } = await access.admin
-      .from("incidents")
-      .insert({
-        tenant_id: access.tenant.id,
-        number,
-        short_description: shortDescription,
-        description: details,
-        priority,
-        status: "new",
-        created_by: access.user.id,
+    if (itsmSettings.send_requester_confirmation_emails) {
+      await sendIncidentCreatedEmail({
+        tenantName: tenant.name || tenant.slug,
+        incident,
       })
-      .select("*")
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({
-      ok: true,
-      incident,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error.message || "Failed to create incident" },
-      { status: 500 }
-    )
+    }
+  } catch (emailError) {
+    console.error("[itsm-email] incident created email failed", emailError)
   }
+
+  return NextResponse.json({ incident })
 }
