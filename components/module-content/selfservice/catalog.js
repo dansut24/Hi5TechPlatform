@@ -1,14 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import {
-  Minus,
-  Plus,
-  Search,
-  ShoppingBasket,
-  Trash2,
-  X,
-} from "lucide-react"
+import { Minus, Plus, Search, ShoppingBasket, Trash2, X } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
@@ -34,6 +27,83 @@ function CatalogCard({ item, theme, onAdd }) {
   )
 }
 
+function TemplateFieldInput({ field, value, onChange, theme }) {
+  if (field.field_type === "textarea") {
+    return (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || ""}
+        className={cn("min-h-[92px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
+      />
+    )
+  }
+
+  if (field.field_type === "select") {
+    const options = Array.isArray(field.options_json) ? field.options_json : []
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+      >
+        <option value="">Select...</option>
+        {options.map((option) => (
+          <option key={String(option)} value={String(option)}>
+            {String(option)}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
+  if (field.field_type === "date") {
+    return (
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+      />
+    )
+  }
+
+  if (field.field_type === "number") {
+    return (
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || ""}
+        className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+      />
+    )
+  }
+
+  if (field.field_type === "checkbox") {
+    return (
+      <label className="flex items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={value === "true"}
+          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+        />
+        <span>{field.placeholder || field.label}</span>
+      </label>
+    )
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={field.placeholder || ""}
+      className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
+    />
+  )
+}
+
 function BasketContents({
   theme,
   basket,
@@ -46,6 +116,8 @@ function BasketContents({
   removeItem,
   submitBasket,
   saving,
+  templateFieldsByItemId,
+  updateTemplateAnswer,
 }) {
   return (
     <>
@@ -72,18 +144,14 @@ function BasketContents({
 
               <div className="mt-3 flex items-center gap-2">
                 <button
-                  onClick={() =>
-                    updateQuantity(entry.catalog_item_id, entry.quantity - 1)
-                  }
+                  onClick={() => updateQuantity(entry.catalog_item_id, entry.quantity - 1)}
                   className={cn("rounded-xl border p-2", theme.card)}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
                 <div className="min-w-[32px] text-center text-sm">{entry.quantity}</div>
                 <button
-                  onClick={() =>
-                    updateQuantity(entry.catalog_item_id, entry.quantity + 1)
-                  }
+                  onClick={() => updateQuantity(entry.catalog_item_id, entry.quantity + 1)}
                   className={cn("rounded-xl border p-2", theme.card)}
                 >
                   <Plus className="h-4 w-4" />
@@ -92,15 +160,37 @@ function BasketContents({
 
               <textarea
                 value={entry.notes}
-                onChange={(e) =>
-                  updateItemNotes(entry.catalog_item_id, e.target.value)
-                }
+                onChange={(e) => updateItemNotes(entry.catalog_item_id, e.target.value)}
                 placeholder="Item notes"
-                className={cn(
-                  "mt-3 min-h-[84px] w-full rounded-2xl border px-4 py-3 text-sm outline-none",
-                  theme.input
-                )}
+                className={cn("mt-3 min-h-[84px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
               />
+
+              {(templateFieldsByItemId[entry.catalog_item_id] || []).length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  <div className="text-sm font-medium">Required details</div>
+                  {templateFieldsByItemId[entry.catalog_item_id].map((field) => (
+                    <div key={field.id}>
+                      <div className={cn("mb-2 text-sm", theme.muted)}>
+                        {field.label}
+                        {field.is_required ? " *" : ""}
+                      </div>
+                      <TemplateFieldInput
+                        field={field}
+                        value={entry.template_answers?.[field.field_key] || ""}
+                        onChange={(value) =>
+                          updateTemplateAnswer(entry.catalog_item_id, field.field_key, value)
+                        }
+                        theme={theme}
+                      />
+                      {field.help_text ? (
+                        <div className={cn("mt-1 text-xs", theme.muted)}>
+                          {field.help_text}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -116,25 +206,17 @@ function BasketContents({
               value={requestedFor}
               onChange={(e) => setRequestedFor(e.target.value)}
               placeholder="Your name or the person this is for"
-              className={cn(
-                "h-11 w-full rounded-2xl border px-4 text-sm outline-none",
-                theme.input
-              )}
+              className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
             />
           </div>
 
           <div>
-            <div className={cn("mb-2 text-sm", theme.muted)}>
-              Business justification
-            </div>
+            <div className={cn("mb-2 text-sm", theme.muted)}>Business justification</div>
             <textarea
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
               placeholder="Why is this needed?"
-              className={cn(
-                "min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none",
-                theme.input
-              )}
+              className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
             />
           </div>
 
@@ -154,6 +236,7 @@ function BasketContents({
 export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   const [categories, setCategories] = useState([])
   const [items, setItems] = useState([])
+  const [templateFields, setTemplateFields] = useState([])
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [basket, setBasket] = useState([])
@@ -182,6 +265,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
         if (alive) {
           setCategories(json.categories || [])
           setItems(json.items || [])
+          setTemplateFields(json.templateFields || [])
         }
       } catch (err) {
         if (alive) setError(err.message || "Failed to load catalog")
@@ -196,13 +280,28 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
     }
   }, [tenantSlug])
 
+  const itemMap = useMemo(
+    () => Object.fromEntries(items.map((item) => [item.id, item])),
+    [items]
+  )
+
+  const templateFieldsByItemId = useMemo(() => {
+    const result = {}
+    for (const item of items) {
+      if (!item.template_id) continue
+      result[item.id] = templateFields
+        .filter((field) => field.template_id === item.template_id)
+        .sort((a, b) => a.sort_order - b.sort_order)
+    }
+    return result
+  }, [items, templateFields])
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesCategory =
         selectedCategory === "all" || item.category_id === selectedCategory
 
-      const haystack =
-        `${item.name} ${item.short_description || ""} ${item.full_description || ""}`.toLowerCase()
+      const haystack = `${item.name} ${item.short_description || ""} ${item.full_description || ""}`.toLowerCase()
       const matchesQuery = haystack.includes(query.toLowerCase())
 
       return matchesCategory && matchesQuery
@@ -231,6 +330,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
           item_name: item.name,
           quantity: 1,
           notes: "",
+          template_answers: {},
         },
       ]
     })
@@ -238,9 +338,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
 
   const updateQuantity = (catalogItemId, nextQty) => {
     if (nextQty <= 0) {
-      setBasket((prev) =>
-        prev.filter((entry) => entry.catalog_item_id !== catalogItemId)
-      )
+      setBasket((prev) => prev.filter((entry) => entry.catalog_item_id !== catalogItemId))
       return
     }
 
@@ -256,15 +354,31 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
   const updateItemNotes = (catalogItemId, notes) => {
     setBasket((prev) =>
       prev.map((entry) =>
-        entry.catalog_item_id === catalogItemId ? { ...entry, notes } : entry
+        entry.catalog_item_id === catalogItemId
+          ? { ...entry, notes }
+          : entry
+      )
+    )
+  }
+
+  const updateTemplateAnswer = (catalogItemId, fieldKey, value) => {
+    setBasket((prev) =>
+      prev.map((entry) =>
+        entry.catalog_item_id === catalogItemId
+          ? {
+              ...entry,
+              template_answers: {
+                ...(entry.template_answers || {}),
+                [fieldKey]: value,
+              },
+            }
+          : entry
       )
     )
   }
 
   const removeItem = (catalogItemId) => {
-    setBasket((prev) =>
-      prev.filter((entry) => entry.catalog_item_id !== catalogItemId)
-    )
+    setBasket((prev) => prev.filter((entry) => entry.catalog_item_id !== catalogItemId))
   }
 
   const submitBasket = async () => {
@@ -310,7 +424,7 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
         <SectionTitle
           theme={theme}
           title="Service catalog"
-          subtitle="Browse available services and add them to your basket before submitting."
+          subtitle="Choose services, complete any required details, and submit them together."
         />
 
         {error ? <div className="text-sm text-rose-400">{error}</div> : null}
@@ -321,30 +435,19 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
             <ShellCard theme={theme} className="p-4">
               <div className="grid gap-3 md:grid-cols-[1fr,220px]">
                 <div className="relative">
-                  <Search
-                    className={cn(
-                      "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2",
-                      theme.muted
-                    )}
-                  />
+                  <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", theme.muted)} />
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search catalog..."
-                    className={cn(
-                      "h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none",
-                      theme.input
-                    )}
+                    className={cn("h-11 w-full rounded-2xl border pl-9 pr-4 text-sm outline-none", theme.input)}
                   />
                 </div>
 
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className={cn(
-                    "h-11 w-full rounded-2xl border px-4 text-sm outline-none",
-                    theme.input
-                  )}
+                  className={cn("h-11 w-full rounded-2xl border px-4 text-sm outline-none", theme.input)}
                 >
                   <option value="all">All categories</option>
                   {categories.map((category) => (
@@ -389,6 +492,8 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
                   removeItem={removeItem}
                   submitBasket={submitBasket}
                   saving={saving}
+                  templateFieldsByItemId={templateFieldsByItemId}
+                  updateTemplateAnswer={updateTemplateAnswer}
                 />
               </ShellCard>
             </div>
@@ -460,6 +565,8 @@ export default function SelfServiceCatalog({ theme, tenantSlug, onNavigate }) {
                   removeItem={removeItem}
                   submitBasket={submitBasket}
                   saving={saving}
+                  templateFieldsByItemId={templateFieldsByItemId}
+                  updateTemplateAnswer={updateTemplateAnswer}
                 />
               </div>
             </div>
