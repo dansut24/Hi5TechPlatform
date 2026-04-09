@@ -422,6 +422,9 @@ export default function ModuleContent({
 if (activeNav === "catalog-items") {
   return <CatalogItems tenantSlug={tenantSlug} theme={theme} />
 }
+    if (activeNav === "incident-statuses") {
+  return <IncidentStatuses tenantSlug={tenantSlug} theme={theme} />
+}
 
     if (activeNav === "control-capabilities") {
       return (
