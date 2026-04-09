@@ -43,6 +43,7 @@ import RequestTemplates from "@/components/admin/request-templates"
 import CatalogCategories from "@/components/admin/catalog-categories"
 import CatalogItems from "@/components/admin/catalog-items"
 import IncidentStatuses from "@/components/admin/incident-statuses"
+import ITSMSettings from "@/components/admin/itsm-settings"
 
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
@@ -424,6 +425,10 @@ if (activeNav === "catalog-items") {
 }
     if (activeNav === "incident-statuses") {
   return <IncidentStatuses tenantSlug={tenantSlug} theme={theme} />
+}
+
+    if (activeNav === "itsm-settings") {
+  return <ITSMSettings tenantSlug={tenantSlug} theme={theme} />
 }
 
     if (activeNav === "control-capabilities") {
