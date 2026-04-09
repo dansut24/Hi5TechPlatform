@@ -38,7 +38,7 @@ async function getTenantAndUser(slug) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
-  return { supabase, tenant, user, membership }
+  return { supabase, tenant, user }
 }
 
 export async function POST(req, { params }) {
@@ -74,10 +74,47 @@ export async function POST(req, { params }) {
   }
 
   const catalogMap = new Map((catalogItems || []).map((item) => [item.id, item]))
+  const templateIds = [...new Set((catalogItems || []).map((item) => item.template_id).filter(Boolean))]
+
+  let templateFields = []
+  if (templateIds.length > 0) {
+    const { data, error } = await supabase
+      .from("service_request_template_fields")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .in("template_id", templateIds)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    templateFields = data || []
+  }
+
+  const templateFieldsByTemplateId = templateFields.reduce((acc, field) => {
+    if (!acc[field.template_id]) acc[field.template_id] = []
+    acc[field.template_id].push(field)
+    return acc
+  }, {})
 
   for (const item of items) {
-    if (!catalogMap.has(item.catalog_item_id)) {
+    const catalogItem = catalogMap.get(item.catalog_item_id)
+    if (!catalogItem) {
       return NextResponse.json({ error: "One or more catalog items are invalid" }, { status: 400 })
+    }
+
+    if (catalogItem.template_id) {
+      const fields = templateFieldsByTemplateId[catalogItem.template_id] || []
+      const answers = item.template_answers || {}
+
+      for (const field of fields) {
+        if (field.is_required && !String(answers[field.field_key] || "").trim()) {
+          return NextResponse.json(
+            { error: `Missing required field "${field.label}" for ${catalogItem.name}` },
+            { status: 400 }
+          )
+        }
+      }
     }
   }
 
@@ -112,7 +149,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: requestError.message }, { status: 500 })
   }
 
-  const requestItemsRows = items.map((item) => {
+  const requestItemsPayload = items.map((item) => {
     const catalogItem = catalogMap.get(item.catalog_item_id)
     return {
       tenant_id: tenant.id,
@@ -124,16 +161,53 @@ export async function POST(req, { params }) {
     }
   })
 
-  const { error: itemsInsertError } = await supabase
+  const { data: insertedItems, error: itemsInsertError } = await supabase
     .from("service_request_items")
-    .insert(requestItemsRows)
+    .insert(requestItemsPayload)
+    .select()
 
   if (itemsInsertError) {
     return NextResponse.json({ error: itemsInsertError.message }, { status: 500 })
   }
 
+  const insertedItemMap = new Map(
+    (insertedItems || []).map((item) => [item.catalog_item_id, item])
+  )
+
+  const fieldValueRows = []
+  for (const basketItem of items) {
+    const catalogItem = catalogMap.get(basketItem.catalog_item_id)
+    const insertedRequestItem = insertedItemMap.get(basketItem.catalog_item_id)
+    if (!catalogItem?.template_id || !insertedRequestItem) continue
+
+    const fields = templateFieldsByTemplateId[catalogItem.template_id] || []
+    const answers = basketItem.template_answers || {}
+
+    for (const field of fields) {
+      fieldValueRows.push({
+        tenant_id: tenant.id,
+        service_request_id: requestRow.id,
+        service_request_item_id: insertedRequestItem.id,
+        template_field_id: field.id,
+        field_key: field.field_key,
+        field_label: field.label,
+        value_text: String(answers[field.field_key] || "").trim() || null,
+      })
+    }
+  }
+
+  if (fieldValueRows.length > 0) {
+    const { error: fieldValueError } = await supabase
+      .from("service_request_item_field_values")
+      .insert(fieldValueRows)
+
+    if (fieldValueError) {
+      return NextResponse.json({ error: fieldValueError.message }, { status: 500 })
+    }
+  }
+
   return NextResponse.json({
     request: requestRow,
-    itemCount: requestItemsRows.length,
+    itemCount: requestItemsPayload.length,
   })
 }
