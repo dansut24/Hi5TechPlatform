@@ -42,6 +42,7 @@ import SecuritySettings from "@/components/admin/security-settings"
 import RequestTemplates from "@/components/admin/request-templates"
 import CatalogCategories from "@/components/admin/catalog-categories"
 import CatalogItems from "@/components/admin/catalog-items"
+import IncidentStatuses from "@/components/admin/incident-statuses"
 
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
