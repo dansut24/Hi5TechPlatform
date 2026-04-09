@@ -105,6 +105,7 @@ export const navByModule = {
     { id: "groups", label: "Groups", icon: Users },
     { id: "permissions", label: "Module Permissions", icon: Lock },
     { id: "control-capabilities", label: "Control Permissions", icon: Shield },
+    { id: "request-templates", label: "Request Templates", icon: ClipboardList },
   ],
 
   analytics: [
