@@ -34,7 +34,7 @@ async function getTenantAndUser(slug) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
-  return { supabase, tenant, user, membership }
+  return { supabase, tenant }
 }
 
 export async function GET(_req, { params }) {
@@ -68,8 +68,28 @@ export async function GET(_req, { params }) {
     return NextResponse.json({ error: itemsError.message }, { status: 500 })
   }
 
+  const templateIds = [...new Set((items || []).map((item) => item.template_id).filter(Boolean))]
+
+  let templateFields = []
+  if (templateIds.length > 0) {
+    const { data, error } = await supabase
+      .from("service_request_template_fields")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .in("template_id", templateIds)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    templateFields = data || []
+  }
+
   return NextResponse.json({
     categories: categories || [],
     items: items || [],
+    templateFields,
   })
 }
