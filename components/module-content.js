@@ -39,6 +39,7 @@ import ControlRemoteTools from "@/components/module-content/control/remote-tools
 
 import AdminOverview from "@/components/module-content/admin/overview"
 import SecuritySettings from "@/components/admin/security-settings"
+import RequestTemplates from "@/components/admin/request-templates"
 
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
@@ -405,6 +406,10 @@ export default function ModuleContent({
     }
     if (activeNav === "security") {
   return <SecuritySettings tenantSlug={tenantSlug} theme={theme} />
+}
+
+    if (activeNav === "request-templates") {
+  return <RequestTemplates tenantSlug={tenantSlug} theme={theme} />
 }
 
     if (activeNav === "control-capabilities") {
