@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getTenantItsmSettingsByTenantId } from "@/lib/itsm/settings"
+import {
+  sendIncidentResolvedEmail,
+  sendIncidentUpdatedEmail,
+} from "@/lib/itsm/notifications"
 
 async function getTenantAndMember(slug) {
   const supabase = await createServerSupabaseClient()
@@ -15,7 +20,7 @@ async function getTenantAndMember(slug) {
 
   const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
-    .select("id")
+    .select("id, slug, name")
     .eq("slug", slug)
     .single()
 
@@ -66,28 +71,28 @@ export async function PATCH(req, { params }) {
   const { supabase, tenant } = ctx
   const body = await req.json()
 
+  const { data: currentIncident, error: currentIncidentError } = await supabase
+    .from("incidents")
+    .select("*")
+    .eq("tenant_id", tenant.id)
+    .eq("id", id)
+    .single()
+
+  if (currentIncidentError || !currentIncident) {
+    return NextResponse.json({ error: "Incident not found" }, { status: 404 })
+  }
+
   const updates = {}
 
-  if ("status" in body) {
-    updates.status = String(body.status || "").trim()
-  }
-
-  if ("priority" in body) {
-    updates.priority = String(body.priority || "").trim()
-  }
-
-  if ("assigned_to" in body) {
-    updates.assigned_to = body.assigned_to || null
-  }
-
-  if ("assignment_group_id" in body) {
-    updates.assignment_group_id = body.assignment_group_id || null
-  }
-
+  if ("status" in body) updates.status = String(body.status || "").trim()
+  if ("priority" in body) updates.priority = String(body.priority || "").trim()
+  if ("assigned_to" in body) updates.assigned_to = body.assigned_to || null
+  if ("assignment_group_id" in body) updates.assignment_group_id = body.assignment_group_id || null
   if ("resolution_notes" in body) {
     updates.resolution_notes = String(body.resolution_notes || "").trim() || null
   }
 
+  let selectedStatus = null
   if (updates.status) {
     const { data: statusRow, error: statusError } = await supabase
       .from("incident_statuses")
@@ -100,24 +105,22 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Invalid incident status" }, { status: 400 })
     }
 
-    if (statusRow.is_resolved && !updates.resolved_at) {
-      updates.resolved_at = new Date().toISOString()
-    }
+    selectedStatus = statusRow
 
-    if (!statusRow.is_resolved) {
+    if (statusRow.is_resolved) {
+      updates.resolved_at = currentIncident.resolved_at || new Date().toISOString()
+    } else {
       updates.resolved_at = null
     }
 
-    if (statusRow.is_closed && !updates.closed_at) {
-      updates.closed_at = new Date().toISOString()
-    }
-
-    if (!statusRow.is_closed) {
+    if (statusRow.is_closed) {
+      updates.closed_at = currentIncident.closed_at || new Date().toISOString()
+    } else {
       updates.closed_at = null
     }
   }
 
-  const { data, error } = await supabase
+  const { data: incident, error } = await supabase
     .from("incidents")
     .update(updates)
     .eq("tenant_id", tenant.id)
@@ -129,5 +132,34 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ incident: data })
+  try {
+    const itsmSettings = await getTenantItsmSettingsByTenantId(tenant.id)
+
+    if (selectedStatus?.is_resolved && itsmSettings.send_resolution_emails) {
+      await sendIncidentResolvedEmail({
+        tenantName: tenant.name || tenant.slug,
+        incident,
+        surveyUrl: itsmSettings.survey_enabled ? itsmSettings.survey_url : null,
+      })
+    } else if (
+      itsmSettings.send_requester_update_emails &&
+      (
+        "status" in body ||
+        "assigned_to" in body ||
+        "assignment_group_id" in body ||
+        "resolution_notes" in body ||
+        "priority" in body
+      )
+    ) {
+      await sendIncidentUpdatedEmail({
+        tenantName: tenant.name || tenant.slug,
+        incident,
+        statusLabel: selectedStatus?.label || incident.status,
+      })
+    }
+  } catch (emailError) {
+    console.error("[itsm-email] incident update email failed", emailError)
+  }
+
+  return NextResponse.json({ incident })
 }
