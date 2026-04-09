@@ -414,6 +414,14 @@ export default function ModuleContent({
   return <RequestTemplates tenantSlug={tenantSlug} theme={theme} />
 }
 
+    if (activeNav === "catalog-categories") {
+  return <CatalogCategories tenantSlug={tenantSlug} theme={theme} />
+}
+
+if (activeNav === "catalog-items") {
+  return <CatalogItems tenantSlug={tenantSlug} theme={theme} />
+}
+
     if (activeNav === "control-capabilities") {
       return (
         <ControlCapabilitiesManager
