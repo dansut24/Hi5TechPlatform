@@ -40,6 +40,8 @@ import ControlRemoteTools from "@/components/module-content/control/remote-tools
 import AdminOverview from "@/components/module-content/admin/overview"
 import SecuritySettings from "@/components/admin/security-settings"
 import RequestTemplates from "@/components/admin/request-templates"
+import CatalogCategories from "@/components/admin/catalog-categories"
+import CatalogItems from "@/components/admin/catalog-items"
 
 import SimpleWorkspace from "@/components/module-content/shared/simple-workspace"
 
