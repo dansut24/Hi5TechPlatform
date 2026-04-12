@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendIncidentReopenedNotification } from "@/lib/itsm/notifications"
 import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
+import { notifyIncidentReopened } from "@/lib/notifications/incident-notifications"
 
 async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
@@ -105,6 +106,15 @@ export async function POST(_req, { params }) {
     })
   } catch (notifyError) {
     console.error("[itsm-email] incident reopen notification failed", notifyError)
+  }
+
+  try {
+    await notifyIncidentReopened({
+      tenantId: tenant.id,
+      incident: updatedIncident,
+    })
+  } catch (notificationError) {
+    console.error("[notifications] incident reopened failed", notificationError)
   }
 
   return NextResponse.json({ incident: updatedIncident })
