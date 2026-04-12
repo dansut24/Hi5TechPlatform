@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { History, MessageSquare } from "lucide-react"
+import { History, MessageSquare, NotebookPen } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 import ShellCard from "@/components/module-content/shared/shell-card"
 import SectionTitle from "@/components/module-content/shared/section-title"
@@ -42,6 +42,8 @@ function PriorityChip({ priority }) {
 
 function CommentsPanel({
   theme,
+  title,
+  icon: Icon,
   comments = [],
   loading = false,
   error = "",
@@ -49,24 +51,33 @@ function CommentsPanel({
   setNewComment,
   onSubmit,
   saving = false,
+  placeholder = "Add note...",
+  accent = "default",
 }) {
   return (
     <ShellCard theme={theme} className="p-5">
       <div className="mb-4 flex items-center gap-2">
-        <MessageSquare className="h-5 w-5" />
-        <div className="text-lg font-semibold">Incident comments</div>
+        <Icon className="h-5 w-5" />
+        <div className="text-lg font-semibold">{title}</div>
       </div>
 
       {loading ? (
-        <div className="text-sm">Loading comments...</div>
+        <div className="text-sm">Loading...</div>
       ) : error ? (
         <div className="text-sm text-rose-400">{error}</div>
       ) : comments.length === 0 ? (
-        <div className="text-sm">No comments yet.</div>
+        <div className="text-sm">No entries yet.</div>
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => (
-            <div key={comment.id} className={cn("rounded-2xl border p-4", theme.subCard, theme.line)}>
+            <div
+              key={comment.id}
+              className={cn(
+                "rounded-2xl border p-4",
+                accent === "internal" ? "bg-amber-500/5" : theme.subCard,
+                theme.line
+              )}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium">
@@ -86,16 +97,16 @@ function CommentsPanel({
       )}
 
       <div className={cn("mt-5 border-t pt-5", theme.line)}>
-        <div className={cn("mb-2 text-sm", theme.muted)}>Add comment</div>
+        <div className={cn("mb-2 text-sm", theme.muted)}>Add {title.toLowerCase()}</div>
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           className={cn("min-h-[120px] w-full rounded-2xl border px-4 py-3 text-sm outline-none", theme.input)}
-          placeholder="Add an update..."
+          placeholder={placeholder}
         />
         <div className="mt-3 flex justify-end">
           <ActionButton theme={theme} onClick={onSubmit} disabled={saving}>
-            {saving ? "Posting..." : "Post comment"}
+            {saving ? "Posting..." : "Post"}
           </ActionButton>
         </div>
       </div>
@@ -152,7 +163,8 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
   const [workflowLoading, setWorkflowLoading] = useState(true)
   const [error, setError] = useState("")
 
-  const [comments, setComments] = useState([])
+  const [publicComments, setPublicComments] = useState([])
+  const [internalNotes, setInternalNotes] = useState([])
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [commentsError, setCommentsError] = useState("")
 
@@ -160,8 +172,10 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
   const [activityLoading, setActivityLoading] = useState(true)
   const [activityError, setActivityError] = useState("")
 
-  const [newComment, setNewComment] = useState("")
-  const [savingComment, setSavingComment] = useState(false)
+  const [newPublicComment, setNewPublicComment] = useState("")
+  const [newInternalNote, setNewInternalNote] = useState("")
+  const [savingPublicComment, setSavingPublicComment] = useState(false)
+  const [savingInternalNote, setSavingInternalNote] = useState(false)
   const [savingUpdate, setSavingUpdate] = useState(false)
 
   const statusOptions = workflow.statuses || []
@@ -200,7 +214,10 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
     const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, { cache: "no-store" })
     const json = await res.json()
     if (!res.ok) throw new Error(json.error || "Failed to load comments")
-    setComments(json.comments || [])
+
+    const allComments = json.comments || []
+    setPublicComments(allComments.filter((item) => item.visibility === "public"))
+    setInternalNotes(allComments.filter((item) => item.visibility === "internal"))
   }
 
   async function loadActivity() {
@@ -316,28 +333,59 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
     }
   }
 
-  const submitComment = async () => {
+  const submitPublicComment = async () => {
     try {
-      if (!newComment.trim()) return
-      setSavingComment(true)
+      if (!newPublicComment.trim()) return
+      setSavingPublicComment(true)
       setCommentsError("")
 
       const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: newComment }),
+        body: JSON.stringify({
+          body: newPublicComment,
+          visibility: "public",
+        }),
       })
 
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to add comment")
+      if (!res.ok) throw new Error(json.error || "Failed to add public comment")
 
-      setComments((prev) => [...prev, json.comment])
-      setNewComment("")
+      setPublicComments((prev) => [...prev, json.comment])
+      setNewPublicComment("")
       await loadActivity()
     } catch (err) {
-      setCommentsError(err.message || "Failed to add comment")
+      setCommentsError(err.message || "Failed to add public comment")
     } finally {
-      setSavingComment(false)
+      setSavingPublicComment(false)
+    }
+  }
+
+  const submitInternalNote = async () => {
+    try {
+      if (!newInternalNote.trim()) return
+      setSavingInternalNote(true)
+      setCommentsError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/incidents/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: newInternalNote,
+          visibility: "internal",
+        }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to add internal note")
+
+      setInternalNotes((prev) => [...prev, json.comment])
+      setNewInternalNote("")
+      await loadActivity()
+    } catch (err) {
+      setCommentsError(err.message || "Failed to add internal note")
+    } finally {
+      setSavingInternalNote(false)
     }
   }
 
@@ -475,25 +523,43 @@ export default function ITSMIncidentDetail({ theme, tenantSlug, id }) {
         </div>
       </ShellCard>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-2">
         <CommentsPanel
           theme={theme}
-          comments={comments}
+          title="Public comments"
+          icon={MessageSquare}
+          comments={publicComments}
           loading={commentsLoading}
           error={commentsError}
-          newComment={newComment}
-          setNewComment={setNewComment}
-          onSubmit={submitComment}
-          saving={savingComment}
+          newComment={newPublicComment}
+          setNewComment={setNewPublicComment}
+          onSubmit={submitPublicComment}
+          saving={savingPublicComment}
+          placeholder="Add requester-visible update..."
         />
 
-        <ActivityPanel
+        <CommentsPanel
           theme={theme}
-          activity={activity}
-          loading={activityLoading}
-          error={activityError}
+          title="Internal notes"
+          icon={NotebookPen}
+          comments={internalNotes}
+          loading={commentsLoading}
+          error={commentsError}
+          newComment={newInternalNote}
+          setNewComment={setNewInternalNote}
+          onSubmit={submitInternalNote}
+          saving={savingInternalNote}
+          placeholder="Add internal service desk note..."
+          accent="internal"
         />
       </div>
+
+      <ActivityPanel
+        theme={theme}
+        activity={activity}
+        loading={activityLoading}
+        error={activityError}
+      />
     </div>
   )
 }
