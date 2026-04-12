@@ -5,6 +5,10 @@ import {
   sendIncidentResolvedEmail,
   sendIncidentUpdatedEmail,
 } from "@/lib/itsm/notifications"
+import {
+  notifyIncidentAssigned,
+  notifyIncidentResolved,
+} from "@/lib/notifications/incident-notifications"
 
 async function getTenantAndMember(slug) {
   const supabase = await createServerSupabaseClient()
@@ -159,6 +163,25 @@ export async function PATCH(req, { params }) {
     }
   } catch (emailError) {
     console.error("[itsm-email] incident update email failed", emailError)
+  }
+
+  try {
+    if ("assigned_to" in body && incident.assigned_to) {
+      await notifyIncidentAssigned({
+        tenantId: tenant.id,
+        incident,
+        assignedTo: incident.assigned_to,
+      })
+    }
+
+    if (selectedStatus?.is_resolved) {
+      await notifyIncidentResolved({
+        tenantId: tenant.id,
+        incident,
+      })
+    }
+  } catch (notificationError) {
+    console.error("[notifications] incident update failed", notificationError)
   }
 
   return NextResponse.json({ incident })
