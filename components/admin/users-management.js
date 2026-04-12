@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, RefreshCw, Send, Trash2, Users } from "lucide-react"
+import { Plus, RefreshCw, Send, Users } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
 const ROLE_OPTIONS = [
@@ -29,16 +29,19 @@ export default function UsersManagement({ tenantSlug, theme }) {
   const [message, setMessage] = useState("")
 
   const [email, setEmail] = useState("")
-  const [role, setRole] = useState("technician")
+  const [role, setRole] = useState("user")
   const [groupIds, setGroupIds] = useState([])
 
   async function load() {
     try {
       setLoading(true)
       setError("")
+
       const res = await fetch(`/api/tenant/${tenantSlug}/users`, { cache: "no-store" })
       const json = await res.json()
+
       if (!res.ok) throw new Error(json.error || "Failed to load users")
+
       setMembers(json.members || [])
       setInvites(json.invites || [])
       setGroups(json.groups || [])
@@ -50,7 +53,7 @@ export default function UsersManagement({ tenantSlug, theme }) {
   }
 
   useEffect(() => {
-    load()
+    if (tenantSlug) load()
   }, [tenantSlug])
 
   const pendingInvites = useMemo(
@@ -64,15 +67,24 @@ export default function UsersManagement({ tenantSlug, theme }) {
       setError("")
       setMessage("")
 
+      const cleanEmail = String(email || "").trim().toLowerCase()
+      const cleanGroupIds = Array.isArray(groupIds)
+        ? groupIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+        : []
+
+      if (!cleanEmail) {
+        throw new Error("Email is required")
+      }
+
       const res = await fetch(`/api/tenant/${tenantSlug}/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          email: cleanEmail,
           role,
-          groupIds,
+          groupIds: cleanGroupIds,
         }),
       })
 
@@ -80,7 +92,7 @@ export default function UsersManagement({ tenantSlug, theme }) {
       if (!res.ok) throw new Error(json.error || "Failed to invite user")
 
       setEmail("")
-      setRole("technician")
+      setRole("user")
       setGroupIds([])
       setMessage("Invite sent successfully.")
       await load()
@@ -132,7 +144,11 @@ export default function UsersManagement({ tenantSlug, theme }) {
 
         <button
           onClick={load}
-          className={cn("inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm transition", theme.card, theme.hover)}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm transition",
+            theme.card,
+            theme.hover
+          )}
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -175,22 +191,25 @@ export default function UsersManagement({ tenantSlug, theme }) {
             <div>
               <div className={cn("mb-2 text-sm", theme.muted)}>Groups</div>
               <div className="flex flex-wrap gap-2">
-                {groups.length ? groups.map((group) => {
-                  const selected = groupIds.includes(group.id)
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => toggleGroup(group.id)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs transition",
-                        selected ? theme.selected : cn(theme.card, theme.hover)
-                      )}
-                    >
-                      {group.name}
-                    </button>
-                  )
-                }) : (
+                {groups.length ? (
+                  groups.map((group) => {
+                    const selected = groupIds.includes(group.id)
+
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => toggleGroup(group.id)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs transition",
+                          selected ? theme.selected : cn(theme.card, theme.hover)
+                        )}
+                      >
+                        {group.name}
+                      </button>
+                    )
+                  })
+                ) : (
                   <div className={cn("text-sm", theme.muted)}>No groups yet.</div>
                 )}
               </div>
@@ -239,7 +258,11 @@ export default function UsersManagement({ tenantSlug, theme }) {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateInvite(invite.id, "resend")}
-                        className={cn("rounded-xl border px-3 py-2 text-xs transition", theme.card, theme.hover)}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-xs transition",
+                          theme.card,
+                          theme.hover
+                        )}
                       >
                         Resend
                       </button>
@@ -258,45 +281,36 @@ export default function UsersManagement({ tenantSlug, theme }) {
         </Card>
       </div>
 
-      <Card theme={theme} className="overflow-hidden">
-        <div className={cn("grid grid-cols-[1.4fr,120px,120px] gap-4 border-b px-5 py-4 text-xs uppercase tracking-wide", theme.line, theme.muted2)}>
-          <div>User</div>
-          <div>Role</div>
-          <div>Status</div>
+      <Card theme={theme} className="p-5">
+        <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Users className="h-5 w-5" />
+          Active members
         </div>
 
-        {loading ? (
-          <div className="px-5 py-6 text-sm">Loading users...</div>
-        ) : members.length === 0 ? (
-          <div className="px-5 py-6 text-sm">No members found.</div>
-        ) : (
-          members.map((member) => (
-            <div
-              key={member.id}
-              className={cn("grid grid-cols-[1.4fr,120px,120px] gap-4 border-b px-5 py-4 text-sm last:border-b-0", theme.line)}
-            >
-              <div className="min-w-0">
-                <div className="truncate font-medium">
-                  {member.profiles?.full_name || member.profiles?.email || member.user_id}
-                </div>
-                <div className={cn("truncate text-xs", theme.muted)}>
-                  {member.profiles?.email || "No email"}
+        <div className="space-y-3">
+          {loading ? (
+            <div className="text-sm">Loading members...</div>
+          ) : members.length === 0 ? (
+            <div className={cn("text-sm", theme.muted)}>No active members yet.</div>
+          ) : (
+            members.map((member, index) => (
+              <div key={`${member.user_id}-${index}`} className={cn("rounded-2xl border p-4", theme.card)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">
+                      {member.profiles?.full_name || member.profiles?.email || "Unknown user"}
+                    </div>
+                    <div className={cn("mt-1 text-xs", theme.muted)}>
+                      {member.profiles?.email || "No email"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-xs capitalize">
+                    {member.role}
+                  </div>
                 </div>
               </div>
-              <div className="capitalize">{member.role}</div>
-              <div className="capitalize">{member.status || "active"}</div>
-            </div>
-          ))
-        )}
-      </Card>
-
-      <Card theme={theme} className="p-5">
-        <div className="mb-3 flex items-center gap-2 text-lg font-semibold">
-          <Users className="h-5 w-5" />
-          Next
-        </div>
-        <div className={cn("text-sm", theme.muted)}>
-          Groups and module access can be layered on top of this next.
+            ))
+          )}
         </div>
       </Card>
     </div>
