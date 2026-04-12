@@ -32,12 +32,14 @@ async function getTenantAndMember(slug) {
     return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: memberships, error: membershipError } = await supabase
     .from("memberships")
     .select("role")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
-    .single()
+    .limit(1)
+
+  const membership = memberships?.[0] || null
 
   if (membershipError || !membership) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
@@ -98,12 +100,14 @@ export async function PATCH(req, { params }) {
 
   let selectedStatus = null
   if (updates.status) {
-    const { data: statusRow, error: statusError } = await supabase
+    const { data: statusRows, error: statusError } = await supabase
       .from("incident_statuses")
       .select("*")
       .eq("tenant_id", tenant.id)
       .eq("key", updates.status)
-      .single()
+      .limit(1)
+
+    const statusRow = statusRows?.[0] || null
 
     if (statusError || !statusRow) {
       return NextResponse.json({ error: "Invalid incident status" }, { status: 400 })
