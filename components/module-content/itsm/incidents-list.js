@@ -40,10 +40,23 @@ function PriorityChip({ priority }) {
   )
 }
 
+const QUEUE_OPTIONS = [
+  { id: "all", label: "All" },
+  { id: "unassigned", label: "Unassigned" },
+  { id: "mine", label: "My Queue" },
+  { id: "resolved", label: "Resolved" },
+]
+
 export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
-  const [rows, setRows] = useState([])
+  const [selectedQueue, setSelectedQueue] = useState("all")
+  const [queues, setQueues] = useState({
+    all: [],
+    unassigned: [],
+    mine: [],
+    resolved: [],
+  })
   const [workflow, setWorkflow] = useState({
     statuses: [],
     users: [],
@@ -56,33 +69,38 @@ export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
   useEffect(() => {
     let alive = true
 
-    async function loadRows() {
+    async function loadQueues() {
       try {
         if (!tenantSlug) return
         setLoading(true)
         setError("")
 
-        const url = query
-          ? `/api/tenant/${tenantSlug}/incidents?q=${encodeURIComponent(query)}`
-          : `/api/tenant/${tenantSlug}/incidents`
-
-        const res = await fetch(url, { cache: "no-store" })
+        const res = await fetch(`/api/tenant/${tenantSlug}/itsm/incident-queues`, {
+          cache: "no-store",
+        })
         const json = await res.json()
 
-        if (!res.ok) throw new Error(json.error || "Failed to load incidents")
-        if (alive) setRows(json.incidents || [])
+        if (!res.ok) throw new Error(json.error || "Failed to load incident queues")
+        if (alive) {
+          setQueues({
+            all: json.queues?.all || [],
+            unassigned: json.queues?.unassigned || [],
+            mine: json.queues?.mine || [],
+            resolved: json.queues?.resolved || [],
+          })
+        }
       } catch (err) {
-        if (alive) setError(err.message || "Failed to load incidents")
+        if (alive) setError(err.message || "Failed to load incident queues")
       } finally {
         if (alive) setLoading(false)
       }
     }
 
-    loadRows()
+    loadQueues()
     return () => {
       alive = false
     }
-  }, [tenantSlug, query])
+  }, [tenantSlug])
 
   useEffect(() => {
     let alive = true
@@ -118,10 +136,28 @@ export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
     }
   }, [tenantSlug])
 
+  const queueRows = queues[selectedQueue] || []
+
   const filteredRows = useMemo(() => {
-    if (!statusFilter) return rows
-    return rows.filter((row) => row.status === statusFilter)
-  }, [rows, statusFilter])
+    let rows = queueRows
+
+    if (statusFilter) {
+      rows = rows.filter((row) => row.status === statusFilter)
+    }
+
+    if (query.trim()) {
+      const q = query.toLowerCase()
+      rows = rows.filter((row) =>
+        [row.number, row.short_description, row.description]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      )
+    }
+
+    return rows
+  }, [queueRows, statusFilter, query])
 
   const getAssignedUser = (assignedTo) => {
     const userRow = workflow.users.find((row) => row.user_id === assignedTo)
@@ -138,7 +174,7 @@ export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
       <SectionTitle
         theme={theme}
         title="Incident management"
-        subtitle="Track, assign, prioritise, and resolve operational disruption."
+        subtitle="Work your queues, assign tickets, and track service desk activity."
         action={
           <ActionButton theme={theme} onClick={() => onNavigate?.("new-incident", "New Incident")}>
             New Incident
@@ -147,6 +183,25 @@ export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
       />
 
       {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+      <div className="flex flex-wrap gap-2">
+        {QUEUE_OPTIONS.map((queue) => (
+          <button
+            key={queue.id}
+            onClick={() => setSelectedQueue(queue.id)}
+            className={cn(
+              "rounded-2xl px-4 py-2 text-sm transition",
+              selectedQueue === queue.id
+                ? theme.resolved === "light"
+                  ? "bg-slate-950 text-white"
+                  : "bg-white text-slate-950"
+                : cn(theme.card, theme.hover, "border")
+            )}
+          >
+            {queue.label}
+          </button>
+        ))}
+      </div>
 
       <ShellCard theme={theme} className="p-4">
         <div className="grid gap-3 md:grid-cols-[1fr,240px]">
@@ -190,7 +245,7 @@ export default function ITSMIncidentsList({ theme, tenantSlug, onNavigate }) {
         {loading ? (
           <div className="px-5 py-6 text-sm">Loading incidents...</div>
         ) : filteredRows.length === 0 ? (
-          <div className="px-5 py-6 text-sm">No incidents found.</div>
+          <div className="px-5 py-6 text-sm">No incidents found in this queue.</div>
         ) : (
           filteredRows.map((item) => (
             <div
