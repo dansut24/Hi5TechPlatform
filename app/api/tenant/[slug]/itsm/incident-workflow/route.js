@@ -23,12 +23,14 @@ async function getTenantAndMember(slug) {
     return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: memberships, error: membershipError } = await supabase
     .from("memberships")
     .select("role")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
-    .single()
+    .limit(1)
+
+  const membership = memberships?.[0] || null
 
   if (membershipError || !membership) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
@@ -75,9 +77,11 @@ export async function GET(_req, { params }) {
   if (statusesRes.error) {
     return NextResponse.json({ error: statusesRes.error.message }, { status: 500 })
   }
+
   if (usersRes.error) {
     return NextResponse.json({ error: usersRes.error.message }, { status: 500 })
   }
+
   if (groupsRes.error) {
     return NextResponse.json({ error: groupsRes.error.message }, { status: 500 })
   }
