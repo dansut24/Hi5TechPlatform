@@ -32,7 +32,10 @@ function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, th
         e.stopPropagation()
         setThemeMode(key)
       }}
-      className={cn("flex h-7 w-7 items-center justify-center rounded-full transition lg:h-8 lg:w-8", themeMode === key ? theme.soft : theme.muted)}
+      className={cn(
+        "flex h-7 w-7 items-center justify-center rounded-full transition lg:h-8 lg:w-8",
+        themeMode === key ? theme.soft : theme.muted
+      )}
     >
       {icon}
     </button>
@@ -43,20 +46,38 @@ function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, th
       <span className={cn("inline-flex items-center rounded-full border p-1", theme.card)}>
         {themeButton(
           "light",
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
           </svg>
         )}
         {themeButton(
           "dark",
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
           </svg>
         )}
         {themeButton(
           "system",
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <rect x="5" y="4" width="14" height="16" rx="2" />
             <path d="M9 8h6" />
           </svg>
@@ -71,7 +92,10 @@ function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, th
               e.stopPropagation()
               setCustomTheme("midnight")
             }}
-            className={cn("h-6 rounded-full px-2.5 text-[10px] transition lg:h-7 lg:px-3 lg:text-[11px]", customTheme === "midnight" ? theme.soft : theme.muted)}
+            className={cn(
+              "h-6 rounded-full px-2.5 text-[10px] transition lg:h-7 lg:px-3 lg:text-[11px]",
+              customTheme === "midnight" ? theme.soft : theme.muted
+            )}
           >
             Midnight
           </button>
@@ -80,7 +104,10 @@ function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, th
               e.stopPropagation()
               setCustomTheme("emerald")
             }}
-            className={cn("h-6 rounded-full px-2.5 text-[10px] transition lg:h-7 lg:px-3 lg:text-[11px]", customTheme === "emerald" ? theme.soft : theme.muted)}
+            className={cn(
+              "h-6 rounded-full px-2.5 text-[10px] transition lg:h-7 lg:px-3 lg:text-[11px]",
+              customTheme === "emerald" ? theme.soft : theme.muted
+            )}
           >
             Emerald
           </button>
@@ -115,9 +142,7 @@ export default function FloatingMenu({
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    const getViewportHeight = () =>
-      window.visualViewport?.height || window.innerHeight
-
+    const getViewportHeight = () => window.visualViewport?.height || window.innerHeight
     let initialHeight = getViewportHeight()
 
     const handleViewportChange = () => {
@@ -163,10 +188,17 @@ export default function FloatingMenu({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className={cn("fixed left-1/2 z-50 -translate-x-1/2", floatingBarBottomClass, navMode === "sidebar" ? "lg:hidden" : "")}
+            className={cn(
+              "fixed left-1/2 z-50 -translate-x-1/2",
+              floatingBarBottomClass,
+              navMode === "sidebar" ? "lg:hidden" : ""
+            )}
           >
             <div
-              className={cn("flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2", theme.floating)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-[22px] border px-2 py-1.5 shadow-2xl backdrop-blur-2xl lg:gap-2 lg:rounded-[26px] lg:px-2.5 lg:py-2",
+                theme.floating
+              )}
               style={{
                 boxShadow: branding?.brandHex
                   ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.12), 0 14px 40px rgba(var(--tenant-brand-rgb),0.12)"
@@ -174,21 +206,41 @@ export default function FloatingMenu({
               }}
             >
               <button
-                className={cn("flex h-9 items-center gap-2 rounded-[16px] px-3 text-sm transition lg:h-10 lg:rounded-[20px]", theme.hover)}
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-[16px] px-3 text-sm transition lg:h-10 lg:rounded-[20px]",
+                  theme.hover
+                )}
                 onClick={onOpenSearch}
               >
                 <Search className="h-4 w-4" />
                 <span>Search...</span>
               </button>
 
-              <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
+              <div
+                className={cn(
+                  "h-6 w-px lg:h-7",
+                  theme.resolved === "light" ? "bg-slate-200" : "bg-white/10"
+                )}
+              />
 
-              <NotificationBell theme={theme} mobile />
+              <NotificationBell
+                theme={theme}
+                mobile
+                tenantSlug={tenantSlug}
+              />
 
-              <div className={cn("h-6 w-px lg:h-7", theme.resolved === "light" ? "bg-slate-200" : "bg-white/10")} />
+              <div
+                className={cn(
+                  "h-6 w-px lg:h-7",
+                  theme.resolved === "light" ? "bg-slate-200" : "bg-white/10"
+                )}
+              />
 
               <button
-                className={cn("flex h-9 w-9 items-center justify-center rounded-[16px] transition lg:h-10 lg:w-10 lg:rounded-[18px]", theme.hover)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-[16px] transition lg:h-10 lg:w-10 lg:rounded-[18px]",
+                  theme.hover
+                )}
                 onClick={() => setMenuOpen(true)}
               >
                 <Menu className="h-4 w-4" />
@@ -200,7 +252,10 @@ export default function FloatingMenu({
 
       <AnimatePresence>
         {menuOpen ? (
-          <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]" onClick={() => setMenuOpen(false)}>
+          <div
+            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]"
+            onClick={() => setMenuOpen(false)}
+          >
             <motion.div
               key="floating-menu-sheet"
               initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -262,7 +317,9 @@ export default function FloatingMenu({
                 </div>
 
                 <div className={cn("border-t px-2 pb-2.5 pt-3 lg:pb-3", theme.line)}>
-                  <div className={cn("mb-2 text-[10px] uppercase tracking-[0.18em] lg:text-[11px]", theme.muted2)}>Platform</div>
+                  <div className={cn("mb-2 text-[10px] uppercase tracking-[0.18em] lg:text-[11px]", theme.muted2)}>
+                    Platform
+                  </div>
                 </div>
 
                 <div className="space-y-1 px-1 pb-3">
@@ -272,7 +329,10 @@ export default function FloatingMenu({
                     return (
                       <button
                         key={item.label}
-                        className={cn("group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3", theme.hover)}
+                        className={cn(
+                          "group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3",
+                          theme.hover
+                        )}
                       >
                         <span className="flex items-center gap-3">
                           <Icon className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
@@ -298,14 +358,23 @@ export default function FloatingMenu({
               {user ? (
                 <div className={cn("mt-2.5 border-t px-2 pt-2.5 lg:mt-3 lg:pt-3", theme.line)}>
                   <div
-                    className={cn("flex items-center gap-3 rounded-[20px] border p-3 lg:rounded-[22px] lg:p-4", theme.subCard, theme.line)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-[20px] border p-3 lg:rounded-[22px] lg:p-4",
+                      theme.subCard,
+                      theme.line
+                    )}
                     style={{
                       background: branding?.brandHex
                         ? "linear-gradient(135deg, rgba(var(--tenant-brand-rgb),0.10), rgba(var(--tenant-brand-rgb),0.03))"
                         : undefined,
                     }}
                   >
-                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold lg:h-11 lg:w-11", theme.card)}>
+                    <div
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-xs font-semibold lg:h-11 lg:w-11",
+                        theme.card
+                      )}
+                    >
                       {user.initials}
                     </div>
                     <div className="min-w-0">
@@ -327,7 +396,10 @@ export default function FloatingMenu({
                     onGoModules()
                     setMenuOpen(false)
                   }}
-                  className={cn("flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3", theme.hover)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3",
+                    theme.hover
+                  )}
                 >
                   <span className="flex items-center gap-3">
                     <Grid3X3 className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
