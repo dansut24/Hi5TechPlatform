@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import { Bell, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
@@ -35,33 +36,216 @@ function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
   )
 }
 
-function NotificationBell({ theme, mobile = false }) {
-  const [open, setOpen] = useState(false)
+function formatRelativeTime(value) {
+  if (!value) return ""
 
-  const notifications = [
-    { title: "P1 incident assigned", detail: "INC-10492 moved to Network", time: "2m" },
-    { title: "CAB approval pending", detail: "2 changes awaiting approval", time: "14m" },
-    { title: "Patch compliance improved", detail: "Control workspace now at 91.4%", time: "1h" },
-  ]
+  const date = new Date(value)
+  const diffMs = Date.now() - date.getTime()
+
+  if (!Number.isFinite(diffMs)) return ""
+
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return "now"
+  if (minutes < 60) return `${minutes}m`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+
+  return date.toLocaleDateString()
+}
+
+function buildNotificationPath(tenantSlug, notification) {
+  if (!tenantSlug) return null
+  if (notification?.link) {
+    if (notification.link.startsWith("/tenant/")) return notification.link
+    return `/tenant/${tenantSlug}${notification.link}`
+  }
+
+  if (notification?.entity_type === "incident" && notification?.entity_id) {
+    return `/tenant/${tenantSlug}/itsm`
+  }
+
+  return null
+}
+
+function notificationDetail(notification) {
+  return notification?.body || "Open to view more details."
+}
+
+function notificationTitle(notification) {
+  return notification?.title || "Notification"
+}
+
+function NotificationBell({ theme, mobile = false, tenantSlug }) {
+  const router = useRouter()
+  const panelRef = useRef(null)
+  const buttonRef = useRef(null)
+
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [markingAll, setMarkingAll] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [error, setError] = useState("")
+
+  const loadNotifications = async () => {
+    if (!tenantSlug) return
+
+    try {
+      setLoading(true)
+      setError("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/notifications`, {
+        cache: "no-store",
+      })
+      const json = await res.json()
+
+      if (!res.ok) throw new Error(json.error || "Failed to load notifications")
+
+      setNotifications(json.notifications || [])
+      setUnreadCount(Number(json.unreadCount || 0))
+    } catch (err) {
+      setError(err.message || "Failed to load notifications")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!tenantSlug) return
+    loadNotifications()
+  }, [tenantSlug])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handleClickOutside(event) {
+      const target = event.target
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) {
+        return
+      }
+      setOpen(false)
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [open])
+
+  const markRead = async ({ ids = [], markAll = false }) => {
+    if (!tenantSlug) return
+
+    const idsToMark = Array.isArray(ids) ? ids.filter(Boolean) : []
+    if (!markAll && idsToMark.length === 0) return
+
+    const previousNotifications = notifications
+    const previousUnread = unreadCount
+    const nowIso = new Date().toISOString()
+
+    setNotifications((prev) =>
+      prev.map((item) =>
+        markAll || idsToMark.includes(item.id)
+          ? { ...item, is_read: true, read_at: item.read_at || nowIso }
+          : item
+      )
+    )
+    setUnreadCount((prev) => {
+      if (markAll) return 0
+      const unreadToMark = previousNotifications.filter(
+        (item) => idsToMark.includes(item.id) && !item.is_read
+      ).length
+      return Math.max(0, prev - unreadToMark)
+    })
+
+    try {
+      const res = await fetch(`/api/tenant/${tenantSlug}/notifications/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: idsToMark, markAll }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to mark notifications read")
+    } catch (err) {
+      setNotifications(previousNotifications)
+      setUnreadCount(previousUnread)
+      setError(err.message || "Failed to mark notifications read")
+    }
+  }
+
+  const handleOpenToggle = async () => {
+    const nextOpen = !open
+    setOpen(nextOpen)
+
+    if (nextOpen && tenantSlug) {
+      await loadNotifications()
+    }
+  }
+
+  const handleNotificationClick = async (notification) => {
+    const path = buildNotificationPath(tenantSlug, notification)
+
+    if (!notification?.is_read) {
+      await markRead({ ids: [notification.id] })
+    }
+
+    setOpen(false)
+
+    if (path) {
+      router.push(path)
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    try {
+      setMarkingAll(true)
+      await markRead({ markAll: true })
+    } finally {
+      setMarkingAll(false)
+    }
+  }
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={buttonRef}
+        onClick={handleOpenToggle}
         className={cn(
           "relative flex items-center justify-center rounded-xl border transition",
           mobile ? "h-9 w-9 lg:h-10 lg:w-10" : "h-8 w-8 lg:h-9 lg:w-9",
           theme.card,
           theme.hover
         )}
+        aria-label="Notifications"
       >
         <Bell className={mobile ? "h-4 w-4 lg:h-4.5 lg:w-4.5" : "h-3.5 w-3.5 lg:h-4 lg:w-4"} />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400" />
+        {unreadCount > 0 ? (
+          <>
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400" />
+            <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-cyan-400 px-1.5 py-0.5 text-[10px] font-semibold text-slate-950">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          </>
+        ) : null}
       </button>
 
       <AnimatePresence>
         {open ? (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -73,19 +257,63 @@ function NotificationBell({ theme, mobile = false }) {
               theme.panel
             )}
           >
-            <div className="mb-2 px-2 text-sm font-medium">Notifications</div>
-            <div className="space-y-2">
-              {notifications.map((item) => (
-                <div key={item.title} className={cn("rounded-2xl border p-3", theme.subCard, theme.line)}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium">{item.title}</div>
-                      <div className={cn("mt-1 text-xs", theme.muted)}>{item.detail}</div>
+            <div className="mb-3 flex items-center justify-between gap-3 px-2">
+              <div className="text-sm font-medium">Notifications</div>
+              <button
+                onClick={handleMarkAllRead}
+                disabled={markingAll || unreadCount === 0}
+                className={cn(
+                  "text-xs transition",
+                  unreadCount === 0 ? theme.muted2 : "text-cyan-400 hover:opacity-80"
+                )}
+              >
+                {markingAll ? "Marking..." : "Mark all read"}
+              </button>
+            </div>
+
+            {error ? (
+              <div className="px-2 pb-2 text-xs text-rose-400">{error}</div>
+            ) : null}
+
+            <div className="max-h-[320px] space-y-2 overflow-auto">
+              {loading ? (
+                <div className="px-2 py-3 text-sm">Loading notifications...</div>
+              ) : notifications.length === 0 ? (
+                <div className="px-2 py-3 text-sm">No notifications yet.</div>
+              ) : (
+                notifications.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item)}
+                    className={cn(
+                      "w-full rounded-2xl border p-3 text-left transition",
+                      theme.subCard,
+                      theme.line,
+                      !item.is_read ? "ring-1 ring-cyan-400/30" : "",
+                      theme.hover
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {!item.is_read ? (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-cyan-400" />
+                          ) : null}
+                          <div className="truncate text-sm font-medium">
+                            {notificationTitle(item)}
+                          </div>
+                        </div>
+                        <div className={cn("mt-1 line-clamp-2 text-xs", theme.muted)}>
+                          {notificationDetail(item)}
+                        </div>
+                      </div>
+                      <div className={cn("shrink-0 text-[11px]", theme.muted2)}>
+                        {formatRelativeTime(item.created_at)}
+                      </div>
                     </div>
-                    <div className={cn("text-[11px]", theme.muted2)}>{item.time}</div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         ) : null}
@@ -101,6 +329,7 @@ export default function HeaderBar({
   currentModuleTitle,
   navItems,
   activeNav,
+  tenantSlug,
 }) {
   return (
     <div
@@ -112,13 +341,17 @@ export default function HeaderBar({
           <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <HeaderBreadcrumbs
             currentModuleTitle={currentModuleTitle}
             navItems={navItems}
             activeNav={activeNav}
             theme={theme}
           />
+        </div>
+
+        <div className="hidden lg:block">
+          <NotificationBell theme={theme} tenantSlug={tenantSlug} />
         </div>
       </div>
     </div>
