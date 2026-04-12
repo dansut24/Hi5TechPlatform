@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendIncidentRequesterCommentNotification } from "@/lib/itsm/notifications"
 import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
+import { notifyRequesterComment } from "@/lib/notifications/incident-notifications"
 
 async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
@@ -141,6 +142,15 @@ export async function POST(req, { params }) {
     })
   } catch (notifyError) {
     console.error("[itsm-email] requester comment notification failed", notifyError)
+  }
+
+  try {
+    await notifyRequesterComment({
+      tenantId: tenant.id,
+      incident,
+    })
+  } catch (notificationError) {
+    console.error("[notifications] requester comment failed", notificationError)
   }
 
   return NextResponse.json({ comment })
