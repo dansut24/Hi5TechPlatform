@@ -342,6 +342,7 @@ export default function AppShell({
                     activeNav={activeNav}
                     branding={branding}
                     tenantName={tenantName}
+                    tenantSlug={tenantSlug}
                   />
                   <TabBar
                     openTabs={openTabs}
