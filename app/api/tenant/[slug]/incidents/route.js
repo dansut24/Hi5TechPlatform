@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getTenantItsmSettingsByTenantId } from "@/lib/itsm/settings"
 import { sendIncidentCreatedEmail } from "@/lib/itsm/notifications"
+import { notifyIncidentCreated } from "@/lib/notifications/incident-notifications"
 
 function makeIncidentNumber() {
   return `INC-${Date.now()}`
@@ -128,6 +129,15 @@ export async function POST(req, { params }) {
     }
   } catch (emailError) {
     console.error("[itsm-email] incident created email failed", emailError)
+  }
+
+  try {
+    await notifyIncidentCreated({
+      tenantId: tenant.id,
+      incident,
+    })
+  } catch (notificationError) {
+    console.error("[notifications] incident created failed", notificationError)
   }
 
   return NextResponse.json({ incident })
