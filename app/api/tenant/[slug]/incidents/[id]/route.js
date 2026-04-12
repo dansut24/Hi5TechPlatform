@@ -128,16 +128,18 @@ export async function PATCH(req, { params }) {
     }
   }
 
-  const { data: incident, error } = await supabase
+  const { data: incidentRows, error } = await supabase
     .from("incidents")
     .update(updates)
     .eq("tenant_id", tenant.id)
     .eq("id", id)
     .select()
-    .single()
+    .limit(1)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  const incident = incidentRows?.[0] || null
+
+  if (error || !incident) {
+    return NextResponse.json({ error: error?.message || "Failed to update incident" }, { status: 500 })
   }
 
   try {
