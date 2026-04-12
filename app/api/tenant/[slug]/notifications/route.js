@@ -10,7 +10,9 @@ async function getTenantAndUser(slug) {
   } = await supabase.auth.getUser()
 
   if (userError || !user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    }
   }
 
   const { data: tenant, error: tenantError } = await supabase
@@ -20,7 +22,9 @@ async function getTenantAndUser(slug) {
     .single()
 
   if (tenantError || !tenant) {
-    return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
+    return {
+      error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }),
+    }
   }
 
   const { data: membership, error: membershipError } = await supabase
@@ -31,7 +35,9 @@ async function getTenantAndUser(slug) {
     .single()
 
   if (membershipError || !membership) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    }
   }
 
   return { supabase, tenant, user }
