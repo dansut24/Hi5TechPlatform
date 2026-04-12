@@ -69,6 +69,7 @@ export async function GET(_req, { params }) {
       )
     `)
     .eq("incident_id", id)
+    .eq("visibility", "public")
     .order("created_at", { ascending: true })
 
   if (error) {
@@ -109,6 +110,7 @@ export async function POST(req, { params }) {
       incident_id: incident.id,
       created_by: user.id,
       body: commentBody,
+      visibility: "public",
     })
     .select(`
       *,
