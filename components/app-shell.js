@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { X } from "lucide-react"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
 import { signOut } from "@/lib/supabase/auth"
@@ -15,6 +16,7 @@ import ModuleSelector from "@/components/module-selector"
 import ModuleContent from "@/components/module-content"
 import DesktopSidebar from "@/components/desktop-sidebar"
 import SessionTimeoutModal from "@/components/auth/session-timeout-modal"
+import { cn } from "@/components/shared-ui"
 
 const moduleRouteMap = {
   "/itsm": "itsm",
@@ -69,6 +71,7 @@ export default function AppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sessionSettings, setSessionSettings] = useState(DEFAULT_SESSION_SETTINGS)
   const [sessionSettingsLoaded, setSessionSettingsLoaded] = useState(false)
+  const [selfServiceMobileMenuOpen, setSelfServiceMobileMenuOpen] = useState(false)
 
   const [openTabs, setOpenTabs] = useState([
     {
@@ -130,6 +133,7 @@ export default function AppShell({
         { id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false },
       ])
       setActiveTabId(firstPage.id)
+      setSelfServiceMobileMenuOpen(false)
       return
     }
 
@@ -166,6 +170,7 @@ export default function AppShell({
       if (event.key === "Escape") {
         setSearchOpen(false)
         setMenuOpen(false)
+        setSelfServiceMobileMenuOpen(false)
       }
     }
     window.addEventListener("keydown", onKeyDown)
@@ -229,6 +234,7 @@ export default function AppShell({
     setActiveNav(firstPage.id)
     setAppState("app")
     setMenuOpen(false)
+    setSelfServiceMobileMenuOpen(false)
     router.push(routeByModule[moduleId])
   }
 
@@ -286,11 +292,13 @@ export default function AppShell({
       setActiveNav(pageId)
       setOpenTabs([{ id: pageId, pageId, label: label || pageId, closable: false }])
       setActiveTabId(pageId)
+      setSelfServiceMobileMenuOpen(false)
       router.push(navRoute)
       return
     }
 
     addNewTab(pageId, label || navItems.find((n) => n.id === pageId)?.label || pageId)
+    setSelfServiceMobileMenuOpen(false)
   }, [tenantSlug, currentModule, navItems, router])
 
   const goToModules = () => {
@@ -383,24 +391,7 @@ export default function AppShell({
 
         {appState === "app" && (
           <>
-            {isSelfService ? (
-              <div className="lg:hidden">
-                <DesktopSidebar
-                  user={user}
-                  navItems={navItems}
-                  activeNav={activeNav}
-                  onSwitchPage={switchPage}
-                  onGoModules={goToModules}
-                  onLogout={goToLogin}
-                  collapsed={false}
-                  setCollapsed={() => {}}
-                  theme={theme}
-                  tenantSlug={tenantSlug}
-                  branding={branding}
-                  tenantName={tenantName}
-                />
-              </div>
-            ) : effectiveNavMode === "sidebar" ? (
+            {!isSelfService && effectiveNavMode === "sidebar" ? (
               <DesktopSidebar
                 user={user}
                 navItems={navItems}
@@ -417,6 +408,70 @@ export default function AppShell({
               />
             ) : null}
 
+            {isSelfService && selfServiceMobileMenuOpen ? (
+              <div className="fixed inset-0 z-[110] lg:hidden">
+                <div
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setSelfServiceMobileMenuOpen(false)}
+                />
+                <div className={cn("absolute inset-y-0 left-0 w-[86vw] max-w-[320px] border-r p-4 shadow-2xl", theme.panel)}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="text-sm font-semibold">{tenantName || tenantSlug}</div>
+                    <button
+                      onClick={() => setSelfServiceMobileMenuOpen(false)}
+                      className={cn("flex h-9 w-9 items-center justify-center rounded-2xl border", theme.card, theme.hover)}
+                      aria-label="Close menu"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {navItems.map((item) => {
+                      const Icon = item.icon
+                      const selected = activeNav === item.id
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => switchPage(item.id, item.label)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition",
+                            selected ? theme.selected : theme.hover
+                          )}
+                        >
+                          <Icon className="h-4.5 w-4.5" />
+                          <span className="text-sm font-medium">{item.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className={cn("mt-4 border-t pt-4", theme.line)}>
+                    <button
+                      onClick={() => {
+                        setSelfServiceMobileMenuOpen(false)
+                        goToModules()
+                      }}
+                      className={cn("mb-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition", theme.hover)}
+                    >
+                      <span className="text-sm font-medium">Back to modules</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelfServiceMobileMenuOpen(false)
+                        goToLogin()
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-rose-300 transition hover:bg-rose-500/10"
+                    >
+                      <span className="text-sm font-medium">Log out</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className={desktopContentOffset}>
               <HeaderBar
                 theme={theme}
@@ -427,6 +482,10 @@ export default function AppShell({
                 tenantName={tenantName}
                 tenantSlug={tenantSlug}
                 moduleId={currentModule}
+                showMobileMenuButton={isSelfService}
+                onOpenMobileMenu={() => setSelfServiceMobileMenuOpen(true)}
+                showMobileSearchButton={isSelfService}
+                onOpenSearch={() => setSearchOpen(true)}
               />
 
               {showTabBar ? (
