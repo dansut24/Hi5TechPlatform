@@ -90,7 +90,6 @@ export default function AppShell({
   const effectiveNavMode = isSelfService ? "sidebar" : navMode
   const showFloatingMenu = !isSelfService
   const showTabBar = !isSelfService
-  const showDesktopSidebar = effectiveNavMode === "sidebar"
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -307,8 +306,14 @@ export default function AppShell({
     router.push(tenantLoginPath(tenantSlug))
   }, [router, tenantSlug])
 
-  const desktopContentOffset =
-    showDesktopSidebar ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
+  const desktopContentOffset = useMemo(() => {
+    if (isSelfService) return ""
+    return effectiveNavMode === "sidebar"
+      ? sidebarCollapsed
+        ? "lg:pl-[84px]"
+        : "lg:pl-[280px]"
+      : ""
+  }, [isSelfService, effectiveNavMode, sidebarCollapsed])
 
   const effectiveIdleTimeoutMinutes = useMemo(() => {
     if (currentModule === "control") {
@@ -378,7 +383,24 @@ export default function AppShell({
 
         {appState === "app" && (
           <>
-            {showDesktopSidebar ? (
+            {isSelfService ? (
+              <div className="lg:hidden">
+                <DesktopSidebar
+                  user={user}
+                  navItems={navItems}
+                  activeNav={activeNav}
+                  onSwitchPage={switchPage}
+                  onGoModules={goToModules}
+                  onLogout={goToLogin}
+                  collapsed={false}
+                  setCollapsed={() => {}}
+                  theme={theme}
+                  tenantSlug={tenantSlug}
+                  branding={branding}
+                  tenantName={tenantName}
+                />
+              </div>
+            ) : effectiveNavMode === "sidebar" ? (
               <DesktopSidebar
                 user={user}
                 navItems={navItems}
@@ -420,7 +442,7 @@ export default function AppShell({
                 />
               ) : null}
 
-              <main className="px-5 pb-28 pt-6 lg:px-8">
+              <main className={isSelfService ? "px-5 pb-10 pt-6 lg:px-8" : "px-5 pb-28 pt-6 lg:px-8"}>
                 <div
                   className="rounded-[30px]"
                   style={{
