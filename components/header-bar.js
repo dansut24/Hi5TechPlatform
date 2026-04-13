@@ -67,6 +67,9 @@ function buildNotificationPath(tenantSlug, notification) {
   }
 
   if (notification?.entity_type === "incident" && notification?.entity_id) {
+    if (notification?.module_id === "selfservice") {
+      return `/tenant/${tenantSlug}/selfservice`
+    }
     return `/tenant/${tenantSlug}/itsm`
   }
 
@@ -81,7 +84,7 @@ function notificationTitle(notification) {
   return notification?.title || "Notification"
 }
 
-function NotificationBell({ theme, mobile = false, tenantSlug }) {
+function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
   const router = useRouter()
   const panelRef = useRef(null)
   const buttonRef = useRef(null)
@@ -94,7 +97,6 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState("")
-  const [currentUserId, setCurrentUserId] = useState("")
   const [realtimeReady, setRealtimeReady] = useState(false)
 
   const loadNotifications = useCallback(async () => {
@@ -104,7 +106,8 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
       setLoading(true)
       setError("")
 
-      const res = await fetch(`/api/tenant/${tenantSlug}/notifications`, {
+      const qs = moduleId ? `?module=${encodeURIComponent(moduleId)}` : ""
+      const res = await fetch(`/api/tenant/${tenantSlug}/notifications${qs}`, {
         cache: "no-store",
       })
       const json = await res.json()
@@ -118,7 +121,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
     } finally {
       setLoading(false)
     }
-  }, [tenantSlug])
+  }, [tenantSlug, moduleId])
 
   useEffect(() => {
     if (!tenantSlug) return
@@ -132,9 +135,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-        if (!url || !anonKey) {
-          return
-        }
+        if (!url || !anonKey) return
 
         const supabase = createBrowserClient(url, anonKey)
         supabaseRef.current = supabase
@@ -151,14 +152,10 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
           return
         }
 
-        if (!user?.id) {
-          return
-        }
-
-        setCurrentUserId(user.id)
+        if (!user?.id) return
 
         const channel = supabase
-          .channel(`notifications:${user.id}`)
+          .channel(`notifications:${user.id}:${moduleId || "all"}`)
           .on(
             "postgres_changes",
             {
@@ -169,6 +166,8 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
             },
             (payload) => {
               const incoming = payload.new
+
+              if (moduleId && incoming?.module_id !== moduleId) return
 
               setNotifications((prev) => {
                 if (prev.some((n) => n.id === incoming.id)) return prev
@@ -183,10 +182,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
           .subscribe((status) => {
             if (!active) return
 
-            if (status === "SUBSCRIBED") {
-              setRealtimeReady(true)
-            }
-
+            if (status === "SUBSCRIBED") setRealtimeReady(true)
             if (status === "CHANNEL_ERROR") {
               setRealtimeReady(false)
               setError("Realtime notifications unavailable")
@@ -214,7 +210,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
 
       channelRef.current = null
     }
-  }, [tenantSlug, loadNotifications])
+  }, [tenantSlug, moduleId, loadNotifications])
 
   useEffect(() => {
     if (!open) return
@@ -439,6 +435,7 @@ export default function HeaderBar({
   navItems,
   activeNav,
   tenantSlug,
+  moduleId,
 }) {
   return (
     <div
@@ -460,7 +457,11 @@ export default function HeaderBar({
         </div>
 
         <div className="hidden lg:block">
-          <NotificationBell theme={theme} tenantSlug={tenantSlug} />
+          <NotificationBell
+            theme={theme}
+            tenantSlug={tenantSlug}
+            moduleId={moduleId}
+          />
         </div>
       </div>
     </div>
