@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { createBrowserClient } from "@supabase/ssr"
 import { AnimatePresence, motion } from "framer-motion"
 import { Bell, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
+import useNotificationRealtime from "@/lib/realtime/use-notification-realtime"
 
 function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
   const activeItem = navItems.find((item) => item.id === activeNav) || navItems[0]
@@ -91,8 +93,10 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState("")
+  const [currentUserId, setCurrentUserId] = useState("")
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false)
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!tenantSlug) return
 
     try {
@@ -113,12 +117,73 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantSlug])
 
   useEffect(() => {
     if (!tenantSlug) return
-    loadNotifications()
-  }, [tenantSlug])
+
+    let active = true
+
+    async function init() {
+      try {
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+        if (!url || !anonKey) {
+          await loadNotifications()
+          return
+        }
+
+        const supabase = createBrowserClient(url, anonKey)
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
+
+        if (!active) return
+
+        if (userError) {
+          setError(userError.message || "Failed to get current user")
+        }
+
+        if (user?.id) {
+          setCurrentUserId(user.id)
+          setRealtimeEnabled(true)
+        }
+
+        await loadNotifications()
+      } catch (err) {
+        if (!active) return
+        setError(err.message || "Failed to initialise notifications")
+        await loadNotifications()
+      }
+    }
+
+    init()
+
+    return () => {
+      active = false
+    }
+  }, [tenantSlug, loadNotifications])
+
+  useNotificationRealtime({
+    enabled: realtimeEnabled,
+    userId: currentUserId,
+    onInsert: (incoming) => {
+      setNotifications((prev) => {
+        const exists = prev.some((item) => item.id === incoming.id)
+        if (exists) return prev
+        return [incoming, ...prev]
+      })
+
+      if (!incoming?.is_read) {
+        setUnreadCount((prev) => prev + 1)
+      }
+    },
+    onError: () => {
+      setRealtimeEnabled(false)
+    },
+  })
 
   useEffect(() => {
     if (!open) return
@@ -147,14 +212,14 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   }, [open])
 
   useEffect(() => {
-    if (!open || !tenantSlug) return
+    if (!open || !tenantSlug || realtimeEnabled) return
 
     const interval = window.setInterval(() => {
       loadNotifications()
     }, 15000)
 
     return () => window.clearInterval(interval)
-  }, [open, tenantSlug])
+  }, [open, tenantSlug, realtimeEnabled, loadNotifications])
 
   const markRead = async ({ ids = [], markAll = false }) => {
     if (!tenantSlug) return
