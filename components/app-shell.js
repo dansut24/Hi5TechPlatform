@@ -86,6 +86,12 @@ export default function AppShell({
   const currentModuleTitle =
     modules.find((module) => module.id === currentModule)?.title || "Workspace"
 
+  const isSelfService = currentModule === "selfservice"
+  const effectiveNavMode = isSelfService ? "sidebar" : navMode
+  const showFloatingMenu = !isSelfService
+  const showTabBar = !isSelfService
+  const showDesktopSidebar = effectiveNavMode === "sidebar"
+
   useEffect(() => {
     if (typeof window === "undefined") return
     const savedNavMode = window.localStorage.getItem("hi5tech-nav-mode")
@@ -302,7 +308,7 @@ export default function AppShell({
   }, [router, tenantSlug])
 
   const desktopContentOffset =
-    navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
+    showDesktopSidebar ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
 
   const effectiveIdleTimeoutMinutes = useMemo(() => {
     if (currentModule === "control") {
@@ -372,7 +378,7 @@ export default function AppShell({
 
         {appState === "app" && (
           <>
-            {navMode === "sidebar" ? (
+            {showDesktopSidebar ? (
               <DesktopSidebar
                 user={user}
                 navItems={navItems}
@@ -398,17 +404,22 @@ export default function AppShell({
                 branding={branding}
                 tenantName={tenantName}
                 tenantSlug={tenantSlug}
+                moduleId={currentModule}
               />
-              <TabBar
-                openTabs={openTabs}
-                activeTabId={activeTabId}
-                onActivate={activateTab}
-                onClose={closeTab}
-                onAdd={addNewTab}
-                navItems={navItems}
-                currentModuleTitle={currentModuleTitle}
-                theme={theme}
-              />
+
+              {showTabBar ? (
+                <TabBar
+                  openTabs={openTabs}
+                  activeTabId={activeTabId}
+                  onActivate={activateTab}
+                  onClose={closeTab}
+                  onAdd={addNewTab}
+                  navItems={navItems}
+                  currentModuleTitle={currentModuleTitle}
+                  theme={theme}
+                />
+              ) : null}
+
               <main className="px-5 pb-28 pt-6 lg:px-8">
                 <div
                   className="rounded-[30px]"
@@ -430,29 +441,32 @@ export default function AppShell({
               </main>
             </div>
 
-            <FloatingMenu
-              navItems={navItems}
-              activeNav={activeNav}
-              onSwitchPage={switchPage}
-              onGoModules={goToModules}
-              onLogout={goToLogin}
-              menuOpen={menuOpen}
-              setMenuOpen={setMenuOpen}
-              onOpenSearch={() => {
-                setMenuOpen(false)
-                setSearchOpen(true)
-              }}
-              themeMode={themeMode}
-              setThemeMode={setThemeMode}
-              customTheme={customTheme}
-              setCustomTheme={setCustomTheme}
-              theme={theme}
-              navMode={navMode}
-              user={user}
-              tenantSlug={tenantSlug}
-              branding={branding}
-              tenantName={tenantName}
-            />
+            {showFloatingMenu ? (
+              <FloatingMenu
+                navItems={navItems}
+                activeNav={activeNav}
+                onSwitchPage={switchPage}
+                onGoModules={goToModules}
+                onLogout={goToLogin}
+                menuOpen={menuOpen}
+                setMenuOpen={setMenuOpen}
+                onOpenSearch={() => {
+                  setMenuOpen(false)
+                  setSearchOpen(true)
+                }}
+                themeMode={themeMode}
+                setThemeMode={setThemeMode}
+                customTheme={customTheme}
+                setCustomTheme={setCustomTheme}
+                theme={theme}
+                navMode={effectiveNavMode}
+                user={user}
+                tenantSlug={tenantSlug}
+                branding={branding}
+                tenantName={tenantName}
+                moduleId={currentModule}
+              />
+            ) : null}
           </>
         )}
       </div>
