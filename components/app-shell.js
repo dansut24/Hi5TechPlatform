@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { modules, navByModule } from "@/data/mock-data"
 import { themeMap } from "@/lib/themes"
 import { signOut } from "@/lib/supabase/auth"
 import { tenantDashboardPath, tenantLoginPath, tenantModulePath, tenantPath } from "@/lib/tenant/paths"
+import useIdleTimeout from "@/lib/auth/use-idle-timeout"
 import HeaderBar from "@/components/header-bar"
 import TabBar from "@/components/tab-bar"
 import FloatingMenu from "@/components/floating-menu"
@@ -13,7 +14,7 @@ import GlobalSearchModal from "@/components/global-search-modal"
 import ModuleSelector from "@/components/module-selector"
 import ModuleContent from "@/components/module-content"
 import DesktopSidebar from "@/components/desktop-sidebar"
-import SelfServiceHeader from "@/components/selfservice/selfservice-header"
+import SessionTimeoutModal from "@/components/auth/session-timeout-modal"
 
 const moduleRouteMap = {
   "/itsm": "itsm",
@@ -22,6 +23,14 @@ const moduleRouteMap = {
   "/admin": "admin",
   "/analytics": "analytics",
   "/automation": "automation",
+}
+
+const DEFAULT_SESSION_SETTINGS = {
+  idle_timeout_minutes: 30,
+  warning_minutes_before: 5,
+  remember_device_days: 30,
+  require_2fa_for_admin: false,
+  require_2fa_for_control: false,
 }
 
 function getRouteForNav({ tenantSlug, currentModule, pageId }) {
@@ -58,6 +67,9 @@ export default function AppShell({
   const [customTheme, setCustomTheme] = useState("midnight")
   const [navMode, setNavMode] = useState("sidebar")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sessionSettings, setSessionSettings] = useState(DEFAULT_SESSION_SETTINGS)
+  const [sessionSettingsLoaded, setSessionSettingsLoaded] = useState(false)
+
   const [openTabs, setOpenTabs] = useState([
     {
       id: initialNav,
@@ -70,11 +82,9 @@ export default function AppShell({
   const [activeTabId, setActiveTabId] = useState(initialNav)
 
   const user = { name: "Dan Sutton", initials: "DS", role: "Platform Admin" }
-  const navItems = navByModule[currentModule] || []
+  const navItems = navByModule[currentModule]
   const currentModuleTitle =
     modules.find((module) => module.id === currentModule)?.title || "Workspace"
-
-  const isSelfService = currentModule === "selfservice"
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -107,9 +117,7 @@ export default function AppShell({
         return
       }
 
-      const firstPage = navByModule[moduleId]?.[0]
-      if (!firstPage) return
-
+      const firstPage = navByModule[moduleId][0]
       setAppState("app")
       setCurrentModule(moduleId)
       setActiveNav(firstPage.id)
@@ -159,6 +167,38 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
+  useEffect(() => {
+    if (!tenantSlug) return
+
+    let active = true
+
+    async function loadSessionSettings() {
+      try {
+        const res = await fetch(`/api/tenant/${tenantSlug}/settings/session`, {
+          cache: "no-store",
+        })
+        const json = await res.json()
+
+        if (!active) return
+        if (!res.ok) return
+
+        setSessionSettings({
+          ...DEFAULT_SESSION_SETTINGS,
+          ...(json.settings || {}),
+        })
+      } catch {
+      } finally {
+        if (active) setSessionSettingsLoaded(true)
+      }
+    }
+
+    loadSessionSettings()
+
+    return () => {
+      active = false
+    }
+  }, [tenantSlug])
+
   const resolvedThemeKey =
     themeMode === "system" ? systemTheme : themeMode === "custom" ? customTheme : themeMode
   const theme = { ...themeMap[resolvedThemeKey], resolved: resolvedThemeKey }
@@ -177,13 +217,9 @@ export default function AppShell({
       return
     }
 
-    const firstPage = navByModule[moduleId]?.[0]
-    if (!firstPage) return
-
     setCurrentModule(moduleId)
-    setOpenTabs([
-      { id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false },
-    ])
+    const firstPage = navByModule[moduleId][0]
+    setOpenTabs([{ id: firstPage.id, pageId: firstPage.id, label: firstPage.label, closable: false }])
     setActiveTabId(firstPage.id)
     setActiveNav(firstPage.id)
     setAppState("app")
@@ -234,7 +270,7 @@ export default function AppShell({
     })
   }
 
-  const switchPage = (pageId, label) => {
+  const switchPage = useCallback((pageId, label) => {
     const navRoute = getRouteForNav({
       tenantSlug,
       currentModule,
@@ -249,31 +285,47 @@ export default function AppShell({
       return
     }
 
-    if (isSelfService) {
-      setActiveNav(pageId)
-      setOpenTabs([{ id: pageId, pageId, label: label || pageId, closable: false }])
-      setActiveTabId(pageId)
-      return
-    }
-
     addNewTab(pageId, label || navItems.find((n) => n.id === pageId)?.label || pageId)
-  }
+  }, [tenantSlug, currentModule, navItems, router])
 
   const goToModules = () => {
     setAppState("modules")
     router.push(tenantDashboardPath(tenantSlug))
   }
 
-  const goToLogin = async () => {
+  const goToLogin = useCallback(async () => {
     try {
       await signOut()
     } catch {}
 
     router.push(tenantLoginPath(tenantSlug))
-  }
+  }, [router, tenantSlug])
 
   const desktopContentOffset =
     navMode === "sidebar" ? (sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[280px]") : ""
+
+  const effectiveIdleTimeoutMinutes = useMemo(() => {
+    if (currentModule === "control") {
+      return Math.min(sessionSettings.idle_timeout_minutes, 15)
+    }
+
+    if (currentModule === "admin") {
+      return Math.min(sessionSettings.idle_timeout_minutes, 20)
+    }
+
+    return sessionSettings.idle_timeout_minutes
+  }, [currentModule, sessionSettings.idle_timeout_minutes])
+
+  const idleTimeoutMs = effectiveIdleTimeoutMinutes * 60 * 1000
+  const warningDurationMs = sessionSettings.warning_minutes_before * 60 * 1000
+
+  const { warningOpen, secondsRemaining, staySignedIn } = useIdleTimeout({
+    enabled: Boolean(sessionSettingsLoaded && tenantSlug && appState === "app"),
+    idleTimeoutMs,
+    warningDurationMs,
+    onWarn: () => {},
+    onTimeout: goToLogin,
+  })
 
   return (
     <div
@@ -290,16 +342,21 @@ export default function AppShell({
       />
 
       <div className="relative z-10">
-        {!isSelfService ? (
-          <GlobalSearchModal
-            open={searchOpen}
-            onClose={() => setSearchOpen(false)}
-            query={searchQuery}
-            setQuery={setSearchQuery}
-            currentModuleTitle={currentModuleTitle}
-            theme={theme}
-          />
-        ) : null}
+        <GlobalSearchModal
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          currentModuleTitle={currentModuleTitle}
+          theme={theme}
+        />
+
+        <SessionTimeoutModal
+          open={warningOpen}
+          secondsRemaining={secondsRemaining}
+          onStaySignedIn={staySignedIn}
+          theme={theme}
+        />
 
         {appState === "modules" && (
           <ModuleSelector
@@ -315,101 +372,52 @@ export default function AppShell({
 
         {appState === "app" && (
           <>
-            {!isSelfService ? (
-              <>
-                {navMode === "sidebar" ? (
-                  <DesktopSidebar
-                    user={user}
-                    navItems={navItems}
-                    activeNav={activeNav}
-                    onSwitchPage={switchPage}
-                    onGoModules={goToModules}
-                    onLogout={goToLogin}
-                    collapsed={sidebarCollapsed}
-                    setCollapsed={setSidebarCollapsed}
-                    theme={theme}
-                    tenantSlug={tenantSlug}
-                    branding={branding}
-                    tenantName={tenantName}
-                  />
-                ) : null}
+            {navMode === "sidebar" ? (
+              <DesktopSidebar
+                user={user}
+                navItems={navItems}
+                activeNav={activeNav}
+                onSwitchPage={switchPage}
+                onGoModules={goToModules}
+                onLogout={goToLogin}
+                collapsed={sidebarCollapsed}
+                setCollapsed={setSidebarCollapsed}
+                theme={theme}
+                tenantSlug={tenantSlug}
+                branding={branding}
+                tenantName={tenantName}
+              />
+            ) : null}
 
-                <div className={desktopContentOffset}>
-                  <HeaderBar
-                    theme={theme}
-                    currentModuleTitle={currentModuleTitle}
-                    navItems={navItems}
-                    activeNav={activeNav}
-                    branding={branding}
-                    tenantName={tenantName}
-                    tenantSlug={tenantSlug}
-                  />
-                  <TabBar
-                    openTabs={openTabs}
-                    activeTabId={activeTabId}
-                    onActivate={activateTab}
-                    onClose={closeTab}
-                    onAdd={addNewTab}
-                    navItems={navItems}
-                    currentModuleTitle={currentModuleTitle}
-                    theme={theme}
-                  />
-                  <main className="px-5 pb-28 pt-6 lg:px-8">
-                    <div
-                      className="rounded-[30px]"
-                      style={{
-                        boxShadow: branding?.brandHex
-                          ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.06), 0 18px 50px rgba(0,0,0,0.08)"
-                          : undefined,
-                      }}
-                    >
-                      <ModuleContent
-                        moduleId={currentModule}
-                        activeNav={activeNav}
-                        theme={theme}
-                        tenantSlug={tenantSlug}
-                        tenantData={tenantData}
-                        onNavigate={switchPage}
-                      />
-                    </div>
-                  </main>
-                </div>
-
-                <FloatingMenu
-                  navItems={navItems}
-                  activeNav={activeNav}
-                  onSwitchPage={switchPage}
-                  onGoModules={goToModules}
-                  onLogout={goToLogin}
-                  menuOpen={menuOpen}
-                  setMenuOpen={setMenuOpen}
-                  onOpenSearch={() => {
-                    setMenuOpen(false)
-                    setSearchOpen(true)
+            <div className={desktopContentOffset}>
+              <HeaderBar
+                theme={theme}
+                currentModuleTitle={currentModuleTitle}
+                navItems={navItems}
+                activeNav={activeNav}
+                branding={branding}
+                tenantName={tenantName}
+                tenantSlug={tenantSlug}
+              />
+              <TabBar
+                openTabs={openTabs}
+                activeTabId={activeTabId}
+                onActivate={activateTab}
+                onClose={closeTab}
+                onAdd={addNewTab}
+                navItems={navItems}
+                currentModuleTitle={currentModuleTitle}
+                theme={theme}
+              />
+              <main className="px-5 pb-28 pt-6 lg:px-8">
+                <div
+                  className="rounded-[30px]"
+                  style={{
+                    boxShadow: branding?.brandHex
+                      ? "0 0 0 1px rgba(var(--tenant-brand-rgb),0.06), 0 18px 50px rgba(0,0,0,0.08)"
+                      : undefined,
                   }}
-                  themeMode={themeMode}
-                  setThemeMode={setThemeMode}
-                  customTheme={customTheme}
-                  setCustomTheme={setCustomTheme}
-                  theme={theme}
-                  navMode={navMode}
-                  user={user}
-                  tenantSlug={tenantSlug}
-                  branding={branding}
-                  tenantName={tenantName}
-                />
-              </>
-            ) : (
-              <>
-                <SelfServiceHeader
-                  theme={theme}
-                  tenantName={tenantName}
-                  onNavigate={switchPage}
-                  onLogout={goToLogin}
-                  user={user}
-                />
-
-                <main className="mx-auto max-w-7xl px-5 pb-16 pt-6 lg:px-8">
+                >
                   <ModuleContent
                     moduleId={currentModule}
                     activeNav={activeNav}
@@ -418,9 +426,33 @@ export default function AppShell({
                     tenantData={tenantData}
                     onNavigate={switchPage}
                   />
-                </main>
-              </>
-            )}
+                </div>
+              </main>
+            </div>
+
+            <FloatingMenu
+              navItems={navItems}
+              activeNav={activeNav}
+              onSwitchPage={switchPage}
+              onGoModules={goToModules}
+              onLogout={goToLogin}
+              menuOpen={menuOpen}
+              setMenuOpen={setMenuOpen}
+              onOpenSearch={() => {
+                setMenuOpen(false)
+                setSearchOpen(true)
+              }}
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+              customTheme={customTheme}
+              setCustomTheme={setCustomTheme}
+              theme={theme}
+              navMode={navMode}
+              user={user}
+              tenantSlug={tenantSlug}
+              branding={branding}
+              tenantName={tenantName}
+            />
           </>
         )}
       </div>
