@@ -46,38 +46,20 @@ function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, th
       <span className={cn("inline-flex items-center rounded-full border p-1", theme.card)}>
         {themeButton(
           "light",
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
           </svg>
         )}
         {themeButton(
           "dark",
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
           </svg>
         )}
         {themeButton(
           "system",
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3.5 w-3.5 lg:h-4 lg:w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 lg:h-4 lg:w-4" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="5" y="4" width="14" height="16" rx="2" />
             <path d="M9 8h6" />
           </svg>
@@ -136,6 +118,7 @@ export default function FloatingMenu({
   tenantSlug,
   branding,
   tenantName,
+  moduleId,
 }) {
   const [isKeyboardLikeOpen, setIsKeyboardLikeOpen] = useState(false)
 
@@ -227,6 +210,7 @@ export default function FloatingMenu({
                 theme={theme}
                 mobile
                 tenantSlug={tenantSlug}
+                moduleId={moduleId}
               />
 
               <div
