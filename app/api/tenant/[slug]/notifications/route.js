@@ -27,12 +27,14 @@ async function getTenantAndUser(slug) {
     }
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: memberships, error: membershipError } = await supabase
     .from("memberships")
     .select("user_id")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
-    .single()
+    .limit(1)
+
+  const membership = memberships?.[0] || null
 
   if (membershipError || !membership) {
     return {
@@ -43,20 +45,28 @@ async function getTenantAndUser(slug) {
   return { supabase, tenant, user }
 }
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   const { slug } = await params
   const ctx = await getTenantAndUser(slug)
   if (ctx.error) return ctx.error
 
   const { supabase, tenant, user } = ctx
+  const { searchParams } = new URL(req.url)
+  const moduleId = String(searchParams.get("module") || "").trim()
 
-  const { data: notifications, error } = await supabase
+  let query = supabase
     .from("notifications")
     .select("*")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(30)
+
+  if (moduleId) {
+    query = query.eq("module_id", moduleId)
+  }
+
+  const { data: notifications, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
