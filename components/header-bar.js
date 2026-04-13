@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@supabase/ssr"
 import { AnimatePresence, motion } from "framer-motion"
-import { Bell, Sparkles } from "lucide-react"
+import { Bell, Menu, Search, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
 function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
@@ -166,7 +166,6 @@ function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
             },
             (payload) => {
               const incoming = payload.new
-
               if (moduleId && incoming?.module_id !== moduleId) return
 
               setNotifications((prev) => {
@@ -181,7 +180,6 @@ function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
           )
           .subscribe((status) => {
             if (!active) return
-
             if (status === "SUBSCRIBED") setRealtimeReady(true)
             if (status === "CHANNEL_ERROR") {
               setRealtimeReady(false)
@@ -201,42 +199,14 @@ function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
     return () => {
       active = false
       setRealtimeReady(false)
-
       try {
         if (supabaseRef.current && channelRef.current) {
           supabaseRef.current.removeChannel(channelRef.current)
         }
       } catch {}
-
       channelRef.current = null
     }
   }, [tenantSlug, moduleId, loadNotifications])
-
-  useEffect(() => {
-    if (!open) return
-
-    function handleClickOutside(event) {
-      const target = event.target
-      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) {
-        return
-      }
-      setOpen(false)
-    }
-
-    function handleEscape(event) {
-      if (event.key === "Escape") {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    document.addEventListener("keydown", handleEscape)
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("keydown", handleEscape)
-    }
-  }, [open])
 
   useEffect(() => {
     if (!tenantSlug) return
@@ -248,6 +218,28 @@ function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
 
     return () => window.clearInterval(interval)
   }, [tenantSlug, realtimeReady, loadNotifications])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handleClickOutside(event) {
+      const target = event.target
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return
+      setOpen(false)
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") setOpen(false)
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [open])
 
   const markRead = async ({ ids = [], markAll = false }) => {
     if (!tenantSlug) return
@@ -376,9 +368,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug, moduleId }) {
               </button>
             </div>
 
-            {error ? (
-              <div className="px-2 pb-2 text-xs text-rose-400">{error}</div>
-            ) : null}
+            {error ? <div className="px-2 pb-2 text-xs text-rose-400">{error}</div> : null}
 
             <div className="max-h-[320px] space-y-2 overflow-auto">
               {loading ? (
@@ -436,6 +426,10 @@ export default function HeaderBar({
   activeNav,
   tenantSlug,
   moduleId,
+  showMobileMenuButton = false,
+  onOpenMobileMenu,
+  showMobileSearchButton = false,
+  onOpenSearch,
 }) {
   return (
     <div
@@ -443,9 +437,19 @@ export default function HeaderBar({
       style={{ height: "var(--header-height)" }}
     >
       <div className="flex h-full items-center gap-3 px-4 py-2 lg:px-6 lg:py-3">
-        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9", theme.card)}>
-          <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
-        </div>
+        {showMobileMenuButton ? (
+          <button
+            onClick={onOpenMobileMenu}
+            className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border transition lg:hidden", theme.card, theme.hover)}
+            aria-label="Open menu"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        ) : (
+          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border lg:h-9 lg:w-9", theme.card)}>
+            <Sparkles className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <HeaderBreadcrumbs
@@ -455,6 +459,16 @@ export default function HeaderBar({
             theme={theme}
           />
         </div>
+
+        {showMobileSearchButton ? (
+          <button
+            onClick={onOpenSearch}
+            className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border transition lg:hidden", theme.card, theme.hover)}
+            aria-label="Open search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        ) : null}
 
         <div className="hidden lg:block">
           <NotificationBell
