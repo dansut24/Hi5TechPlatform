@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@supabase/ssr"
 import { AnimatePresence, motion } from "framer-motion"
 import { Bell, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
@@ -85,8 +84,6 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const router = useRouter()
   const panelRef = useRef(null)
   const buttonRef = useRef(null)
-  const channelRef = useRef(null)
-  const supabaseRef = useRef(null)
 
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -94,7 +91,6 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState("")
-  const [currentUserId, setCurrentUserId] = useState("")
 
   const loadNotifications = async () => {
     if (!tenantSlug) return
@@ -121,80 +117,8 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
 
   useEffect(() => {
     if (!tenantSlug) return
-
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    )
-    supabaseRef.current = supabase
-
-    let active = true
-
-    async function init() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (!active) return
-
-      if (userError) {
-        setError(userError.message || "Failed to get current user")
-      }
-
-      if (user?.id) {
-        setCurrentUserId(user.id)
-      }
-
-      await loadNotifications()
-    }
-
-    init()
-
-    return () => {
-      active = false
-    }
+    loadNotifications()
   }, [tenantSlug])
-
-  useEffect(() => {
-    if (!currentUserId || !supabaseRef.current) return
-
-    if (channelRef.current) {
-      supabaseRef.current.removeChannel(channelRef.current)
-      channelRef.current = null
-    }
-
-    const channel = supabaseRef.current
-      .channel(`notifications:${currentUserId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const incoming = payload.new
-          setNotifications((prev) => {
-            const exists = prev.some((item) => item.id === incoming.id)
-            if (exists) return prev
-            return [incoming, ...prev]
-          })
-          setUnreadCount((prev) => prev + (incoming?.is_read ? 0 : 1))
-        }
-      )
-      .subscribe()
-
-    channelRef.current = channel
-
-    return () => {
-      if (channelRef.current && supabaseRef.current) {
-        supabaseRef.current.removeChannel(channelRef.current)
-        channelRef.current = null
-      }
-    }
-  }, [currentUserId])
 
   useEffect(() => {
     if (!open) return
@@ -221,6 +145,16 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
       document.removeEventListener("keydown", handleEscape)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open || !tenantSlug) return
+
+    const interval = window.setInterval(() => {
+      loadNotifications()
+    }, 15000)
+
+    return () => window.clearInterval(interval)
+  }, [open, tenantSlug])
 
   const markRead = async ({ ids = [], markAll = false }) => {
     if (!tenantSlug) return
