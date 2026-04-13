@@ -6,7 +6,6 @@ import { createBrowserClient } from "@supabase/ssr"
 import { AnimatePresence, motion } from "framer-motion"
 import { Bell, Sparkles } from "lucide-react"
 import { cn } from "@/components/shared-ui"
-import useNotificationRealtime from "@/lib/realtime/use-notification-realtime"
 
 function HeaderBreadcrumbs({ currentModuleTitle, navItems, activeNav, theme }) {
   const activeItem = navItems.find((item) => item.id === activeNav) || navItems[0]
@@ -86,6 +85,8 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const router = useRouter()
   const panelRef = useRef(null)
   const buttonRef = useRef(null)
+  const supabaseRef = useRef(null)
+  const channelRef = useRef(null)
 
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -94,7 +95,7 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState("")
   const [currentUserId, setCurrentUserId] = useState("")
-  const [realtimeEnabled, setRealtimeEnabled] = useState(false)
+  const [realtimeReady, setRealtimeReady] = useState(false)
 
   const loadNotifications = useCallback(async () => {
     if (!tenantSlug) return
@@ -126,15 +127,18 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
 
     async function init() {
       try {
+        await loadNotifications()
+
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
         if (!url || !anonKey) {
-          await loadNotifications()
           return
         }
 
         const supabase = createBrowserClient(url, anonKey)
+        supabaseRef.current = supabase
+
         const {
           data: { user },
           error: userError,
@@ -143,19 +147,56 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
         if (!active) return
 
         if (userError) {
-          setError(userError.message || "Failed to get current user")
+          setError(userError.message || "Failed to initialise realtime notifications")
+          return
         }
 
-        if (user?.id) {
-          setCurrentUserId(user.id)
-          setRealtimeEnabled(true)
+        if (!user?.id) {
+          return
         }
 
-        await loadNotifications()
+        setCurrentUserId(user.id)
+
+        const channel = supabase
+          .channel(`notifications:${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const incoming = payload.new
+
+              setNotifications((prev) => {
+                if (prev.some((n) => n.id === incoming.id)) return prev
+                return [incoming, ...prev]
+              })
+
+              if (!incoming?.is_read) {
+                setUnreadCount((prev) => prev + 1)
+              }
+            }
+          )
+          .subscribe((status) => {
+            if (!active) return
+
+            if (status === "SUBSCRIBED") {
+              setRealtimeReady(true)
+            }
+
+            if (status === "CHANNEL_ERROR") {
+              setRealtimeReady(false)
+              setError("Realtime notifications unavailable")
+            }
+          })
+
+        channelRef.current = channel
       } catch (err) {
         if (!active) return
         setError(err.message || "Failed to initialise notifications")
-        await loadNotifications()
       }
     }
 
@@ -163,27 +204,17 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
 
     return () => {
       active = false
+      setRealtimeReady(false)
+
+      try {
+        if (supabaseRef.current && channelRef.current) {
+          supabaseRef.current.removeChannel(channelRef.current)
+        }
+      } catch {}
+
+      channelRef.current = null
     }
   }, [tenantSlug, loadNotifications])
-
-  useNotificationRealtime({
-    enabled: realtimeEnabled,
-    userId: currentUserId,
-    onInsert: (incoming) => {
-      setNotifications((prev) => {
-        const exists = prev.some((item) => item.id === incoming.id)
-        if (exists) return prev
-        return [incoming, ...prev]
-      })
-
-      if (!incoming?.is_read) {
-        setUnreadCount((prev) => prev + 1)
-      }
-    },
-    onError: () => {
-      setRealtimeEnabled(false)
-    },
-  })
 
   useEffect(() => {
     if (!open) return
@@ -212,14 +243,15 @@ function NotificationBell({ theme, mobile = false, tenantSlug }) {
   }, [open])
 
   useEffect(() => {
-    if (!open || !tenantSlug || realtimeEnabled) return
+    if (!tenantSlug) return
+    if (realtimeReady) return
 
     const interval = window.setInterval(() => {
       loadNotifications()
-    }, 15000)
+    }, 20000)
 
     return () => window.clearInterval(interval)
-  }, [open, tenantSlug, realtimeEnabled, loadNotifications])
+  }, [tenantSlug, realtimeReady, loadNotifications])
 
   const markRead = async ({ ids = [], markAll = false }) => {
     if (!tenantSlug) return
