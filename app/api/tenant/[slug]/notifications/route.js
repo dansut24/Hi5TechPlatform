@@ -46,7 +46,7 @@ async function getTenantAndUser(slug) {
 }
 
 export async function GET(req, { params }) {
-  const { slug } = await params
+  const { slug } = params
   const ctx = await getTenantAndUser(slug)
   if (ctx.error) return ctx.error
 
