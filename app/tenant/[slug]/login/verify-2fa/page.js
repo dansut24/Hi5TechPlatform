@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import Tenant2faVerifyPage from "@/components/auth/tenant-2fa-verify-page"
 
 export default async function TenantVerify2faPage({ params }) {
-  const { slug } = await params
+  const { slug } = params
   const supabase = await createServerSupabaseClient()
 
   const { data: tenant } = await supabase
