@@ -12,7 +12,7 @@ const AVAILABLE_MODULES = [
 
 export async function GET(_request, { params }) {
   try {
-    const { slug } = await params
+    const { slug } = params
     const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
     if (!access.ok) {
