@@ -33,7 +33,7 @@ async function getTenantContext(slug) {
 }
 
 export default async function TenantSecurityPage({ params }) {
-  const { slug } = await params
+  const { slug } = params
   const ctx = await getTenantContext(slug)
 
   if (!ctx?.tenant) {
