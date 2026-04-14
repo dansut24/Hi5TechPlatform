@@ -3,7 +3,7 @@ import { requireTenantApiAccess } from "@/lib/tenant/api-access"
 
 export async function GET(_request, { params }) {
   try {
-    const { slug } = await params
+    const { slug } = params
     const access = await requireTenantApiAccess(slug, "control")
 
     if (!access.ok) {
