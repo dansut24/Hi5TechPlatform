@@ -5,7 +5,7 @@ import { buildTenantInviteEmail } from "@/lib/email/invite-email"
 
 export async function POST(request, { params }) {
   try {
-    const { slug, inviteId } = await params
+    const { slug, inviteId } = params
     const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
     if (!access.ok) {
