@@ -5,7 +5,7 @@ const PRIORITY_ORDER = ["critical", "high", "medium", "low"]
 
 export async function GET(_request, { params }) {
   try {
-    const { slug } = await params
+    const { slug } = params
     const access = await requireTenantApiAccess(slug, "itsm")
 
     if (!access.ok) {
