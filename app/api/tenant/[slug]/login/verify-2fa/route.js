@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth/step-up-auth"
 
 export async function POST(_req, { params }) {
-  const { slug } = await params
+  const { slug } = params
   const body = await _req.json()
 
   const code = String(body.code || "").trim()
