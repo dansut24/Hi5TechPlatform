@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { createTrustedDevice } from "@/lib/auth/trusted-devices"
+import { issueStepUpChallenge, shouldRequireStepUp } from "@/lib/auth/step-up-auth"
 
 async function getSessionSettings(supabase, tenantId) {
   const { data } = await supabase
@@ -21,6 +22,7 @@ export async function POST(req, { params }) {
   const password = String(body.password || "")
   const rememberDevice = Boolean(body.rememberDevice)
   const deviceName = String(body.deviceName || "").trim() || null
+  const requestedModule = String(body.moduleId || "selfservice").trim().toLowerCase()
 
   if (!email || !password) {
     return NextResponse.json(
@@ -43,7 +45,6 @@ export async function POST(req, { params }) {
 
   const userId = authData.user.id
 
-  // Now that the user is signed in, tenant lookup can respect RLS safely.
   const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
     .select("id, slug, name")
@@ -73,6 +74,31 @@ export async function POST(req, { params }) {
     )
   }
 
+  const redirectTo = `/tenant/${tenant.slug}/dashboard`
+  const requireStepUp = await shouldRequireStepUp({
+    tenantId: tenant.id,
+    userId,
+    moduleId: requestedModule,
+  })
+
+  if (requireStepUp) {
+    await issueStepUpChallenge({
+      tenantSlug: tenant.slug,
+      tenantId: tenant.id,
+      userId,
+      email,
+      redirectTo,
+      rememberDevice,
+      deviceName,
+    })
+
+    return NextResponse.json({
+      success: true,
+      requiresStepUp: true,
+      redirectTo: `/tenant/${tenant.slug}/login/verify-2fa`,
+    })
+  }
+
   if (rememberDevice) {
     const settings = await getSessionSettings(supabase, tenant.id)
 
@@ -86,6 +112,6 @@ export async function POST(req, { params }) {
 
   return NextResponse.json({
     success: true,
-    redirectTo: `/tenant/${tenant.slug}/dashboard`,
+    redirectTo,
   })
 }
