@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, Lock, Shield, UserCheck } from "lucide-react"
+import { AlertTriangle, Lock, Shield, Unlock, UserCheck } from "lucide-react"
 import { cn } from "@/components/shared-ui"
 
 function StatCard({ theme, icon: Icon, label, value, tone = "default" }) {
@@ -44,6 +44,8 @@ function shortenUserAgent(value) {
 export default function SecurityDashboardPanel({ tenantSlug, theme }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [message, setMessage] = useState("")
+  const [unlockingEmail, setUnlockingEmail] = useState("")
   const [data, setData] = useState({
     summary: {
       totalAttempts: 0,
@@ -60,6 +62,7 @@ export default function SecurityDashboardPanel({ tenantSlug, theme }) {
     try {
       setLoading(true)
       setError("")
+      setMessage("")
 
       const res = await fetch(`/api/tenant/${tenantSlug}/admin/security-dashboard`, {
         cache: "no-store",
@@ -92,6 +95,32 @@ export default function SecurityDashboardPanel({ tenantSlug, theme }) {
     }
   }, [tenantSlug])
 
+  async function unlockEmail(email) {
+    try {
+      setUnlockingEmail(email)
+      setError("")
+      setMessage("")
+
+      const res = await fetch(`/api/tenant/${tenantSlug}/admin/security-dashboard/unlock`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to unlock account")
+
+      setMessage(`Unlocked ${email}`)
+      await loadDashboard()
+    } catch (err) {
+      setError(err.message || "Failed to unlock account")
+    } finally {
+      setUnlockingEmail("")
+    }
+  }
+
   const recentFailures = useMemo(
     () => data.loginAttempts.filter((item) => !item.success).slice(0, 10),
     [data.loginAttempts]
@@ -106,6 +135,12 @@ export default function SecurityDashboardPanel({ tenantSlug, theme }) {
       {error ? (
         <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           {error}
+        </div>
+      ) : null}
+
+      {message ? (
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          {message}
         </div>
       ) : null}
 
@@ -175,8 +210,20 @@ export default function SecurityDashboardPanel({ tenantSlug, theme }) {
                         Failed attempts in window: {item.count}
                       </div>
                     </div>
-                    <div className="rounded-full bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300">
-                      Locked
+
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300">
+                        Locked
+                      </div>
+
+                      <button
+                        onClick={() => unlockEmail(item.email)}
+                        disabled={unlockingEmail === item.email}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/20 px-3 py-2 text-xs text-emerald-300 transition hover:bg-emerald-500/10 disabled:opacity-50"
+                      >
+                        <Unlock className="h-4 w-4" />
+                        {unlockingEmail === item.email ? "Unlocking..." : "Unlock"}
+                      </button>
                     </div>
                   </div>
                 </div>
