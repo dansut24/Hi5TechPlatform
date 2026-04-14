@@ -3,7 +3,7 @@ import { requireTenantApiAccess } from "@/lib/tenant/api-access"
 
 export async function POST(req, { params }) {
   try {
-    const { slug } = await params
+    const { slug } = params
     const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
     if (!access.ok) {
