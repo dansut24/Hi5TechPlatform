@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getTenantItsmSettingsByTenantId } from "@/lib/itsm/settings"
 import { sendIncidentCreatedEmail } from "@/lib/itsm/notifications"
-import { notifyIncidentCreated } from "@/lib/notifications/incident-notifications"
 import { logActivity } from "@/lib/activity/log-activity"
+import { dispatchActivityNotifications } from "@/lib/activity/dispatch-activity-notifications"
 
 function makeIncidentNumber() {
   return `INC-${Date.now()}`
@@ -121,7 +121,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  await logActivity({
+  const activity = await logActivity({
     tenantId: tenant.id,
     actorUserId: user.id,
     entityType: "incident",
@@ -149,12 +149,12 @@ export async function POST(req, { params }) {
   }
 
   try {
-    await notifyIncidentCreated({
-      tenantId: tenant.id,
+    await dispatchActivityNotifications({
+      activity,
       incident,
     })
   } catch (notificationError) {
-    console.error("[notifications] incident created failed", notificationError)
+    console.error("[activity-notifications] incident created failed", notificationError)
   }
 
   return NextResponse.json({ incident })
