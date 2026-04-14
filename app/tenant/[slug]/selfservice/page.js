@@ -3,7 +3,7 @@ import { getTenantBranding } from "@/lib/tenant/branding"
 import { requireTenantModuleAccess } from "@/lib/tenant/module-access"
 
 export default async function TenantSelfServicePage({ params }) {
-  const { slug } = await params
+  const { slug } = params
   const access = await requireTenantModuleAccess(slug, "selfservice")
   const branding = getTenantBranding(access.tenant)
 
