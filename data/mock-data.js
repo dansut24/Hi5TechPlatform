@@ -110,6 +110,7 @@ export const navByModule = {
     { id: "catalog-items", label: "Catalog Items", icon: ClipboardList },
     { id: "incident-statuses", label: "Incident Statuses", icon: Ticket },
     { id: "itsm-settings", label: "ITSM Settings", icon: Ticket },
+    { id: "session_settings", label: "Session Settings", icon: ShieldCheck },
   ],
 
   analytics: [
