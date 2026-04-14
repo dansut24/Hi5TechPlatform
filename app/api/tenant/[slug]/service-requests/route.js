@@ -50,7 +50,7 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const { slug } = await params
+    const { slug } = params
     const access = await requireTenantApiAccess(slug, "itsm")
 
     if (!access.ok) {
