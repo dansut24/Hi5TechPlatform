@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { sendIncidentRequesterCommentNotification } from "@/lib/itsm/notifications"
+import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
+import { notifyRequesterComment } from "@/lib/notifications/incident-notifications"
+import { logActivity } from "@/lib/activity/log-activity"
 
-async function getTenantAndMember(slug) {
+async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
 
   const {
@@ -15,7 +19,7 @@ async function getTenantAndMember(slug) {
 
   const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
-    .select("id")
+    .select("id, slug, name")
     .eq("slug", slug)
     .single()
 
@@ -25,7 +29,7 @@ async function getTenantAndMember(slug) {
 
   const { data: membership, error: membershipError } = await supabase
     .from("memberships")
-    .select("role")
+    .select("user_id")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
     .single()
@@ -34,30 +38,29 @@ async function getTenantAndMember(slug) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
-  return { supabase, tenant, user, membership }
+  return { supabase, tenant, user }
 }
 
-export async function GET(req, { params }) {
+export async function GET(_req, { params }) {
   const { slug, id } = await params
-  const ctx = await getTenantAndMember(slug)
+  const ctx = await getTenantAndRequester(slug)
   if (ctx.error) return ctx.error
 
-  const { supabase, tenant } = ctx
-  const { searchParams } = new URL(req.url)
-  const visibility = String(searchParams.get("visibility") || "all").trim()
+  const { supabase, tenant, user } = ctx
 
   const { data: incident, error: incidentError } = await supabase
     .from("incidents")
     .select("id")
     .eq("tenant_id", tenant.id)
     .eq("id", id)
+    .eq("created_by", user.id)
     .single()
 
   if (incidentError || !incident) {
     return NextResponse.json({ error: "Incident not found" }, { status: 404 })
   }
 
-  let query = supabase
+  const { data, error } = await supabase
     .from("incident_comments")
     .select(`
       *,
@@ -68,13 +71,8 @@ export async function GET(req, { params }) {
       )
     `)
     .eq("incident_id", id)
+    .eq("visibility", "public")
     .order("created_at", { ascending: true })
-
-  if (visibility === "public" || visibility === "internal") {
-    query = query.eq("visibility", visibility)
-  }
-
-  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -85,28 +83,23 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   const { slug, id } = await params
-  const ctx = await getTenantAndMember(slug)
+  const ctx = await getTenantAndRequester(slug)
   if (ctx.error) return ctx.error
 
   const { supabase, tenant, user } = ctx
   const body = await req.json()
 
   const commentBody = String(body.body || "").trim()
-  const visibility = String(body.visibility || "public").trim()
-
   if (!commentBody) {
     return NextResponse.json({ error: "Comment body is required" }, { status: 400 })
   }
 
-  if (!["public", "internal"].includes(visibility)) {
-    return NextResponse.json({ error: "Invalid visibility" }, { status: 400 })
-  }
-
   const { data: incident, error: incidentError } = await supabase
     .from("incidents")
-    .select("id")
+    .select("*")
     .eq("tenant_id", tenant.id)
     .eq("id", id)
+    .eq("created_by", user.id)
     .single()
 
   if (incidentError || !incident) {
@@ -119,7 +112,7 @@ export async function POST(req, { params }) {
       incident_id: incident.id,
       created_by: user.id,
       body: commentBody,
-      visibility,
+      visibility: "public",
     })
     .select(`
       *,
@@ -133,6 +126,46 @@ export async function POST(req, { params }) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  await logActivity({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    entityType: "incident",
+    entityId: incident.id,
+    eventType: "incident_comment_added",
+    message: `Requester added a comment on ${incident.number}`,
+    metadata: {
+      number: incident.number,
+      comment_id: comment.id,
+      visibility: comment.visibility,
+    },
+  })
+
+  try {
+    const notifyTo = await getIncidentNotificationRecipient({
+      tenantId: tenant.id,
+      assignmentGroupId: incident.assignment_group_id,
+      assignedTo: incident.assigned_to,
+    })
+
+    await sendIncidentRequesterCommentNotification({
+      tenantName: tenant.name || tenant.slug,
+      incident,
+      commentBody,
+      notifyTo,
+    })
+  } catch (notifyError) {
+    console.error("[itsm-email] requester comment notification failed", notifyError)
+  }
+
+  try {
+    await notifyRequesterComment({
+      tenantId: tenant.id,
+      incident,
+    })
+  } catch (notificationError) {
+    console.error("[notifications] requester comment failed", notificationError)
   }
 
   return NextResponse.json({ comment })
