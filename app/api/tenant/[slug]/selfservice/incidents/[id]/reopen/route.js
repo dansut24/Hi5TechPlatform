@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendIncidentReopenedNotification } from "@/lib/itsm/notifications"
 import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
 import { notifyIncidentReopened } from "@/lib/notifications/incident-notifications"
+import { logActivity } from "@/lib/activity/log-activity"
 
 async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
@@ -92,6 +93,19 @@ export async function POST(_req, { params }) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
+  await logActivity({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    entityType: "incident",
+    entityId: updatedIncident.id,
+    eventType: "incident_reopened",
+    message: `Incident ${updatedIncident.number} reopened`,
+    metadata: {
+      number: updatedIncident.number,
+      reopened_to_status: updatedIncident.status,
+    },
+  })
+
   try {
     const notifyTo = await getIncidentNotificationRecipient({
       tenantId: tenant.id,
@@ -114,7 +128,7 @@ export async function POST(_req, { params }) {
       incident: updatedIncident,
     })
   } catch (notificationError) {
-    console.error("[notifications] incident reopened failed", notificationError)
+    console.error("[notifications] incident reopen failed", notificationError)
   }
 
   return NextResponse.json({ incident: updatedIncident })
