@@ -6,7 +6,7 @@ const ALLOWED_STATUSES = ["new", "open", "pending", "in_progress", "resolved", "
 
 export async function GET(_request, { params }) {
   try {
-    const { slug, id } = await params
+    const { slug, id } = params
     const access = await requireTenantApiAccess(slug, "itsm")
 
     if (!access.ok) {
