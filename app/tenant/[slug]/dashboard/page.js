@@ -3,7 +3,7 @@ import { getTenantBranding } from "@/lib/tenant/branding"
 import { getTenantModuleAccess } from "@/lib/tenant/module-access"
 
 export default async function TenantDashboardPage({ params }) {
-  const { slug } = await params
+  const { slug } = params
   const access = await getTenantModuleAccess(slug)
 
   if (!access.user) {
