@@ -112,6 +112,7 @@ export const navByModule = {
     { id: "incident-statuses", label: "Incident Statuses", icon: Ticket },
     { id: "itsm-settings", label: "ITSM Settings", icon: Ticket },
     { id: "session_settings", label: "Session Settings", icon: ShieldCheck },
+    { id: "security", label: "Security", icon: ShieldCheck },
   ],
 
   analytics: [
