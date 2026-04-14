@@ -58,6 +58,7 @@ export default function TenantLoginPage({ theme, tenant, branding, ready = false
           password,
           rememberDevice,
           deviceName: trimmedDeviceName || null,
+          moduleId: "selfservice",
         }),
       })
 
