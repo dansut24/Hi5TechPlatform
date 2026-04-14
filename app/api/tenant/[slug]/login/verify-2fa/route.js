@@ -6,10 +6,11 @@ import {
   getStepUpChallenge,
   verifyTotpCode,
 } from "@/lib/auth/step-up-auth"
+import { logActivity } from "@/lib/activity/log-activity"
 
-export async function POST(_req, { params }) {
+export async function POST(req, { params }) {
   const { slug } = params
-  const body = await _req.json()
+  const body = await req.json()
 
   const code = String(body.code || "").trim()
   const recoveryCode = String(body.recoveryCode || "").trim()
@@ -45,6 +46,18 @@ export async function POST(_req, { params }) {
   }
 
   if (!verified) {
+    await logActivity({
+      tenantId: challenge.tenantId,
+      actorUserId: challenge.userId,
+      entityType: "auth",
+      entityId: challenge.userId,
+      eventType: "2fa_failed",
+      message: "2FA verification failed",
+      metadata: {
+        used_recovery_code: Boolean(recoveryCode),
+      },
+    })
+
     return NextResponse.json(
       { error: "Invalid verification code" },
       { status: 400 }
@@ -58,7 +71,31 @@ export async function POST(_req, { params }) {
       deviceName: challenge.deviceName,
       rememberDeviceDays: 30,
     })
+
+    await logActivity({
+      tenantId: challenge.tenantId,
+      actorUserId: challenge.userId,
+      entityType: "auth",
+      entityId: challenge.userId,
+      eventType: "trusted_device_created",
+      message: "Trusted device created after successful 2FA",
+      metadata: {
+        device_name: challenge.deviceName,
+      },
+    })
   }
+
+  await logActivity({
+    tenantId: challenge.tenantId,
+    actorUserId: challenge.userId,
+    entityType: "auth",
+    entityId: challenge.userId,
+    eventType: "2fa_success",
+    message: "2FA verified",
+    metadata: {
+      used_recovery_code: Boolean(recoveryCode),
+    },
+  })
 
   await clearStepUpChallenge()
 
