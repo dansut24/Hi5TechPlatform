@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { sendIncidentRequesterCommentNotification } from "@/lib/itsm/notifications"
-import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
-import { notifyRequesterComment } from "@/lib/notifications/incident-notifications"
 import { logActivity } from "@/lib/activity/log-activity"
 
-async function getTenantAndRequester(slug) {
+async function getTenantAndMember(slug) {
   const supabase = await createServerSupabaseClient()
 
   const {
@@ -29,32 +26,46 @@ async function getTenantAndRequester(slug) {
 
   const { data: membership, error: membershipError } = await supabase
     .from("memberships")
-    .select("user_id")
+    .select("user_id, role, status")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
-    .single()
+    .limit(1)
 
-  if (membershipError || !membership) {
+  const member = membership?.[0] || null
+
+  if (membershipError || !member) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
-  return { supabase, tenant, user }
+  return { supabase, tenant, user, membership: member }
+}
+
+async function getIncidentForTenant(supabase, tenantId, incidentId) {
+  const { data, error } = await supabase
+    .from("incidents")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("id", incidentId)
+    .limit(1)
+
+  return {
+    incident: data?.[0] || null,
+    error,
+  }
 }
 
 export async function GET(_req, { params }) {
   const { slug, id } = await params
-  const ctx = await getTenantAndRequester(slug)
+  const ctx = await getTenantAndMember(slug)
   if (ctx.error) return ctx.error
 
-  const { supabase, tenant, user } = ctx
+  const { supabase, tenant } = ctx
 
-  const { data: incident, error: incidentError } = await supabase
-    .from("incidents")
-    .select("id")
-    .eq("tenant_id", tenant.id)
-    .eq("id", id)
-    .eq("created_by", user.id)
-    .single()
+  const { incident, error: incidentError } = await getIncidentForTenant(
+    supabase,
+    tenant.id,
+    id
+  )
 
   if (incidentError || !incident) {
     return NextResponse.json({ error: "Incident not found" }, { status: 404 })
@@ -83,7 +94,7 @@ export async function GET(_req, { params }) {
 
 export async function POST(req, { params }) {
   const { slug, id } = await params
-  const ctx = await getTenantAndRequester(slug)
+  const ctx = await getTenantAndMember(slug)
   if (ctx.error) return ctx.error
 
   const { supabase, tenant, user } = ctx
@@ -94,13 +105,11 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Comment body is required" }, { status: 400 })
   }
 
-  const { data: incident, error: incidentError } = await supabase
-    .from("incidents")
-    .select("*")
-    .eq("tenant_id", tenant.id)
-    .eq("id", id)
-    .eq("created_by", user.id)
-    .single()
+  const { incident, error: incidentError } = await getIncidentForTenant(
+    supabase,
+    tenant.id,
+    id
+  )
 
   if (incidentError || !incident) {
     return NextResponse.json({ error: "Incident not found" }, { status: 404 })
@@ -133,40 +142,14 @@ export async function POST(req, { params }) {
     actorUserId: user.id,
     entityType: "incident",
     entityId: incident.id,
-    eventType: "incident_comment_added",
-    message: `Requester added a comment on ${incident.number}`,
+    eventType: "incident_public_comment_added",
+    message: `Public comment added on ${incident.number}`,
     metadata: {
       number: incident.number,
       comment_id: comment.id,
       visibility: comment.visibility,
     },
   })
-
-  try {
-    const notifyTo = await getIncidentNotificationRecipient({
-      tenantId: tenant.id,
-      assignmentGroupId: incident.assignment_group_id,
-      assignedTo: incident.assigned_to,
-    })
-
-    await sendIncidentRequesterCommentNotification({
-      tenantName: tenant.name || tenant.slug,
-      incident,
-      commentBody,
-      notifyTo,
-    })
-  } catch (notifyError) {
-    console.error("[itsm-email] requester comment notification failed", notifyError)
-  }
-
-  try {
-    await notifyRequesterComment({
-      tenantId: tenant.id,
-      incident,
-    })
-  } catch (notificationError) {
-    console.error("[notifications] requester comment failed", notificationError)
-  }
 
   return NextResponse.json({ comment })
 }
