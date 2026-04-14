@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { createTrustedDevice } from "@/lib/auth/trusted-devices"
 import { issueStepUpChallenge } from "@/lib/auth/step-up-auth"
+import {
+  checkLoginLockout,
+  getTenantBySlugForAuth,
+  recordLoginAttempt,
+} from "@/lib/auth/login-protection"
+import { logActivity } from "@/lib/activity/log-activity"
 
 async function getSessionSettings(supabase, tenantId) {
   const { data } = await supabase
@@ -93,10 +99,53 @@ export async function POST(req, { params }) {
   const deviceName = String(body.deviceName || "").trim() || null
   const requestedModule = String(body.moduleId || "selfservice").trim().toLowerCase()
 
+  const ip =
+    req.headers.get("x-forwarded-for") ||
+    req.headers.get("x-real-ip") ||
+    null
+
+  const userAgent = req.headers.get("user-agent") || null
+
   if (!email || !password) {
     return NextResponse.json(
       { error: "Email and password are required" },
       { status: 400 }
+    )
+  }
+
+  const tenant = await getTenantBySlugForAuth(slug)
+
+  if (!tenant) {
+    return NextResponse.json(
+      { error: "Tenant not found" },
+      { status: 404 }
+    )
+  }
+
+  const lock = await checkLoginLockout({
+    tenantId: tenant.id,
+    email,
+  })
+
+  if (lock.locked) {
+    await logActivity({
+      tenantId: tenant.id,
+      actorUserId: null,
+      entityType: "auth",
+      entityId: email,
+      eventType: "login_locked",
+      message: `Blocked login attempt for ${email} due to temporary lockout`,
+      metadata: {
+        email,
+        remaining_seconds: lock.remainingSeconds,
+      },
+    })
+
+    return NextResponse.json(
+      {
+        error: `Too many failed attempts. Try again in ${lock.remainingSeconds}s.`,
+      },
+      { status: 429 }
     )
   }
 
@@ -106,6 +155,28 @@ export async function POST(req, { params }) {
   })
 
   if (authError || !authData?.user) {
+    await recordLoginAttempt({
+      tenantId: tenant.id,
+      email,
+      success: false,
+      reason: "invalid_credentials",
+      ip,
+      userAgent,
+    })
+
+    await logActivity({
+      tenantId: tenant.id,
+      actorUserId: null,
+      entityType: "auth",
+      entityId: email,
+      eventType: "login_failed",
+      message: `Failed login attempt for ${email}`,
+      metadata: {
+        email,
+        reason: "invalid_credentials",
+      },
+    })
+
     return NextResponse.json(
       { error: authError?.message || "Invalid login" },
       { status: 401 }
@@ -113,25 +184,33 @@ export async function POST(req, { params }) {
   }
 
   const userId = authData.user.id
-
-  const { data: tenant, error: tenantError } = await supabase
-    .from("tenants")
-    .select("id, slug, name")
-    .eq("slug", slug)
-    .single()
-
-  if (tenantError || !tenant) {
-    await supabase.auth.signOut()
-    return NextResponse.json(
-      { error: "Tenant not found" },
-      { status: 404 }
-    )
-  }
-
   const membership = await getMembershipWithClient(supabase, tenant.id, userId)
 
   if (!membership?.id || membership.status !== "active") {
+    await recordLoginAttempt({
+      tenantId: tenant.id,
+      email,
+      success: false,
+      reason: "inactive_or_missing_membership",
+      ip,
+      userAgent,
+    })
+
+    await logActivity({
+      tenantId: tenant.id,
+      actorUserId: userId,
+      entityType: "auth",
+      entityId: userId,
+      eventType: "login_denied",
+      message: `Login denied for ${email} due to membership status`,
+      metadata: {
+        email,
+        membership_status: membership?.status || null,
+      },
+    })
+
     await supabase.auth.signOut()
+
     return NextResponse.json(
       { error: "You do not have access to this tenant" },
       { status: 403 }
@@ -144,6 +223,15 @@ export async function POST(req, { params }) {
     hasActiveTrustedDeviceWithClient(supabase, tenant.id, userId),
   ])
 
+  await recordLoginAttempt({
+    tenantId: tenant.id,
+    email,
+    success: true,
+    reason: "login_success",
+    ip,
+    userAgent,
+  })
+
   const requireStepUp = shouldRequireStepUpFromData({
     trustedDeviceActive,
     userSecurity,
@@ -155,6 +243,19 @@ export async function POST(req, { params }) {
   const redirectTo = `/tenant/${tenant.slug}/dashboard`
 
   if (requireStepUp) {
+    await logActivity({
+      tenantId: tenant.id,
+      actorUserId: userId,
+      entityType: "auth",
+      entityId: userId,
+      eventType: "login_step_up_required",
+      message: "Step-up authentication required",
+      metadata: {
+        module_id: requestedModule,
+        trusted_device_active: trustedDeviceActive,
+      },
+    })
+
     await issueStepUpChallenge({
       tenantSlug: tenant.slug,
       tenantId: tenant.id,
@@ -179,7 +280,32 @@ export async function POST(req, { params }) {
       deviceName,
       rememberDeviceDays: Number(tenantSettings?.remember_device_days || 30),
     })
+
+    await logActivity({
+      tenantId: tenant.id,
+      actorUserId: userId,
+      entityType: "auth",
+      entityId: userId,
+      eventType: "trusted_device_created",
+      message: "Trusted device created at login",
+      metadata: {
+        device_name: deviceName,
+      },
+    })
   }
+
+  await logActivity({
+    tenantId: tenant.id,
+    actorUserId: userId,
+    entityType: "auth",
+    entityId: userId,
+    eventType: "login_success",
+    message: "User logged in",
+    metadata: {
+      module_id: requestedModule,
+      trusted_device_active: trustedDeviceActive,
+    },
+  })
 
   return NextResponse.json({
     success: true,
