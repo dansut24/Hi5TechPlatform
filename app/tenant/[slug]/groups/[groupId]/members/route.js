@@ -39,7 +39,7 @@ async function requireTenantAdmin(slug) {
 
 export async function POST(request, { params }) {
   try {
-    const { slug, groupId } = await params;
+    const { slug, groupId } = params;
     const access = await requireTenantAdmin(slug);
     if (access.error) {
       return NextResponse.json({ error: access.error }, { status: access.status });
