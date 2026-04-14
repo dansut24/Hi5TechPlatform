@@ -24,20 +24,20 @@ async function getTenantAndMember(slug) {
     return { error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }) }
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: membershipRows, error: membershipError } = await supabase
     .from("memberships")
     .select("user_id, role, status")
     .eq("tenant_id", tenant.id)
     .eq("user_id", user.id)
     .limit(1)
 
-  const member = membership?.[0] || null
+  const membership = membershipRows?.[0] || null
 
-  if (membershipError || !member) {
+  if (membershipError || !membership) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
-  return { supabase, tenant, user, membership: member }
+  return { supabase, tenant, user, membership }
 }
 
 async function getIncidentForTenant(supabase, tenantId, incidentId) {
@@ -52,6 +52,11 @@ async function getIncidentForTenant(supabase, tenantId, incidentId) {
     incident: data?.[0] || null,
     error,
   }
+}
+
+function normalizeVisibility(value) {
+  const visibility = String(value || "public").trim().toLowerCase()
+  return visibility === "internal" ? "internal" : "public"
 }
 
 export async function GET(_req, { params }) {
@@ -82,7 +87,6 @@ export async function GET(_req, { params }) {
       )
     `)
     .eq("incident_id", id)
-    .eq("visibility", "public")
     .order("created_at", { ascending: true })
 
   if (error) {
@@ -101,6 +105,8 @@ export async function POST(req, { params }) {
   const body = await req.json()
 
   const commentBody = String(body.body || "").trim()
+  const visibility = normalizeVisibility(body.visibility)
+
   if (!commentBody) {
     return NextResponse.json({ error: "Comment body is required" }, { status: 400 })
   }
@@ -121,7 +127,7 @@ export async function POST(req, { params }) {
       incident_id: incident.id,
       created_by: user.id,
       body: commentBody,
-      visibility: "public",
+      visibility,
     })
     .select(`
       *,
@@ -142,12 +148,18 @@ export async function POST(req, { params }) {
     actorUserId: user.id,
     entityType: "incident",
     entityId: incident.id,
-    eventType: "incident_public_comment_added",
-    message: `Public comment added on ${incident.number}`,
+    eventType:
+      visibility === "internal"
+        ? "incident_internal_note_added"
+        : "incident_public_comment_added",
+    message:
+      visibility === "internal"
+        ? `Internal note added on ${incident.number}`
+        : `Public comment added on ${incident.number}`,
     metadata: {
       number: incident.number,
       comment_id: comment.id,
-      visibility: comment.visibility,
+      visibility,
     },
   })
 
