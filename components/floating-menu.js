@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   BookOpen,
@@ -18,11 +19,11 @@ import { cn } from "@/components/shared-ui"
 import { NotificationBell } from "@/components/header-bar"
 
 const platformItems = [
-  { label: "Home", icon: LayoutDashboard },
-  { label: "Account Settings", icon: Settings },
-  { label: "Theme", icon: Sparkles },
-  { label: "Support", icon: UserCircle2 },
-  { label: "Docs", icon: BookOpen },
+  { label: "Home", icon: LayoutDashboard, action: "home" },
+  { label: "Account Settings", icon: Settings, action: "account_settings" },
+  { label: "Theme", icon: Sparkles, action: "theme" },
+  { label: "Support", icon: UserCircle2, action: "support" },
+  { label: "Docs", icon: BookOpen, action: "docs" },
 ]
 
 function ThemeControl({ themeMode, setThemeMode, customTheme, setCustomTheme, theme }) {
@@ -120,6 +121,7 @@ export default function FloatingMenu({
   tenantName,
   moduleId,
 }) {
+  const router = useRouter()
   const [isKeyboardLikeOpen, setIsKeyboardLikeOpen] = useState(false)
 
   useEffect(() => {
@@ -161,6 +163,19 @@ export default function FloatingMenu({
 
   const floatingBarBottomClass = isKeyboardLikeOpen ? "bottom-24 lg:bottom-6" : "bottom-5 lg:bottom-6"
   const menuBottomClass = isKeyboardLikeOpen ? "bottom-[116px] lg:bottom-24" : "bottom-[72px] lg:bottom-24"
+
+  const handlePlatformAction = (action) => {
+    if (action === "account_settings" && tenantSlug) {
+      setMenuOpen(false)
+      router.push(`/tenant/${tenantSlug}/account/security`)
+      return
+    }
+
+    if (action === "home" && tenantSlug) {
+      setMenuOpen(false)
+      router.push(`/tenant/${tenantSlug}/dashboard`)
+    }
+  }
 
   return (
     <>
@@ -313,6 +328,7 @@ export default function FloatingMenu({
                     return (
                       <button
                         key={item.label}
+                        onClick={() => handlePlatformAction(item.action)}
                         className={cn(
                           "group flex w-full items-center justify-between rounded-[16px] px-4 py-2 text-left transition lg:rounded-[22px] lg:px-4 lg:py-3",
                           theme.hover
@@ -322,7 +338,7 @@ export default function FloatingMenu({
                           <Icon className="h-4.5 w-4.5 lg:h-5 lg:w-5" />
                           <span className="text-sm font-medium">{item.label}</span>
                         </span>
-                        {item.label === "Theme" ? (
+                        {item.action === "theme" ? (
                           <ThemeControl
                             themeMode={themeMode}
                             setThemeMode={setThemeMode}
