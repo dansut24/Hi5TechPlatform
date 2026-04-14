@@ -40,6 +40,7 @@ function getRouteForNav({ tenantSlug, currentModule, pageId }) {
 
   if (currentModule === "admin") {
     if (pageId === "branding") return tenantPath(tenantSlug, "/admin/branding")
+    if (pageId === "session_settings") return tenantPath(tenantSlug, "/admin/session-settings")
   }
 
   return null
