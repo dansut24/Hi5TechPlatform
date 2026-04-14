@@ -8,7 +8,7 @@ import TenantLoginPage from "@/components/auth/tenant-login-page"
 export default async function TenantLoginRoutePage({ params, searchParams }) {
   const theme = { ...themeMap.midnight, resolved: "midnight" }
   const admin = getSupabaseAdminClient()
-  const { slug } = await params
+  const { slug } = params
   const ready = (await searchParams)?.ready === "1"
 
   const { data: tenant, error } = await admin
