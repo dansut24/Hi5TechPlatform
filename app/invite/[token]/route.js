@@ -9,7 +9,7 @@ function initialsFromName(name, email) {
 
 export async function GET(request, { params }) {
   try {
-    const { token } = await params
+    const { token } = params
     const admin = getSupabaseAdminClient()
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
 
