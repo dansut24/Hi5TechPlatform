@@ -5,7 +5,7 @@ import { themeMap } from "@/lib/themes"
 export default async function SetupTokenPage({ params }) {
   const theme = { ...themeMap.midnight, resolved: "midnight" }
   const admin = getSupabaseAdminClient()
-  const { token } = await params
+  const { token } = params
 
   const { data: signup, error } = await admin
     .from("trial_signups")
