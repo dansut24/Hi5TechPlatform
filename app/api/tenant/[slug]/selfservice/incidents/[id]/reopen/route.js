@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendIncidentReopenedNotification } from "@/lib/itsm/notifications"
 import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
-import { notifyIncidentReopened } from "@/lib/notifications/incident-notifications"
 import { logActivity } from "@/lib/activity/log-activity"
+import { dispatchActivityNotifications } from "@/lib/activity/dispatch-activity-notifications"
 
 async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
@@ -93,7 +93,7 @@ export async function POST(_req, { params }) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
-  await logActivity({
+  const activity = await logActivity({
     tenantId: tenant.id,
     actorUserId: user.id,
     entityType: "incident",
@@ -123,12 +123,12 @@ export async function POST(_req, { params }) {
   }
 
   try {
-    await notifyIncidentReopened({
-      tenantId: tenant.id,
+    await dispatchActivityNotifications({
+      activity,
       incident: updatedIncident,
     })
   } catch (notificationError) {
-    console.error("[notifications] incident reopen failed", notificationError)
+    console.error("[activity-notifications] incident reopen failed", notificationError)
   }
 
   return NextResponse.json({ incident: updatedIncident })
