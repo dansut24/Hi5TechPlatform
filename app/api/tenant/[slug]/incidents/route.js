@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getTenantItsmSettingsByTenantId } from "@/lib/itsm/settings"
 import { sendIncidentCreatedEmail } from "@/lib/itsm/notifications"
 import { notifyIncidentCreated } from "@/lib/notifications/incident-notifications"
+import { logActivity } from "@/lib/activity/log-activity"
 
 function makeIncidentNumber() {
   return `INC-${Date.now()}`
@@ -119,6 +120,22 @@ export async function POST(req, { params }) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await logActivity({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    entityType: "incident",
+    entityId: incident.id,
+    eventType: "incident_created",
+    message: `Incident ${incident.number} created`,
+    metadata: {
+      number: incident.number,
+      short_description: incident.short_description,
+      priority: incident.priority,
+      status: incident.status,
+      assignment_group_id: incident.assignment_group_id,
+    },
+  })
 
   try {
     if (itsmSettings.send_requester_confirmation_emails) {
