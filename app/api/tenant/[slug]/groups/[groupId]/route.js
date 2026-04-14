@@ -51,7 +51,7 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(_request, { params }) {
   try {
-    const { slug, groupId } = await params
+    const { slug, groupId } = params
     const access = await requireTenantApiAccess(slug, "admin", { adminOnly: true })
 
     if (!access.ok) {
