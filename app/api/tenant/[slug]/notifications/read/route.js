@@ -44,7 +44,7 @@ async function getTenantAndUser(slug) {
 }
 
 export async function POST(req, { params }) {
-  const { slug } = await params
+  const { slug } = params
   const ctx = await getTenantAndUser(slug)
   if (ctx.error) return ctx.error
 
