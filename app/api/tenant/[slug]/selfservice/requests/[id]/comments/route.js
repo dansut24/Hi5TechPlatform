@@ -25,7 +25,7 @@ async function attachProfiles(admin, rows, userIdField) {
 
 export async function GET(_request, { params }) {
   try {
-    const { slug, id } = await params
+    const { slug, id } = params
     const access = await requireTenantApiAccess(slug, "selfservice")
 
     if (!access.ok) {
