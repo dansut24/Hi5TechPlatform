@@ -68,6 +68,11 @@ export default function TenantLoginPage({ theme, tenant, branding, ready = false
         throw new Error(json.error || "Unable to sign in")
       }
 
+      if (json.requiresStepUp && json.redirectTo) {
+        window.location.href = json.redirectTo
+        return
+      }
+
       window.location.href = getSafeNext(next, json.redirectTo || fallbackPath)
     } catch (err) {
       setError(err.message || "Unable to sign in")
