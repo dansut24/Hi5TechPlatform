@@ -4,7 +4,7 @@ import { logActivity } from "@/lib/activity/log"
 
 export async function GET(_request, { params }) {
   try {
-    const { slug, id } = await params
+    const { slug, id } = params
     const access = await requireTenantApiAccess(slug, "itsm")
 
     if (!access.ok) {
