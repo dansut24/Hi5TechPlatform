@@ -22,7 +22,7 @@ async function getTenant(supabase, slug) {
 }
 
 export async function POST(req, { params }) {
-  const { slug } = await params
+  const { slug } = params
   const supabase = await createServerSupabaseClient()
 
   try {
