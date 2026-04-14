@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendIncidentRequesterCommentNotification } from "@/lib/itsm/notifications"
 import { getIncidentNotificationRecipient } from "@/lib/itsm/recipient-routing"
-import { notifyRequesterComment } from "@/lib/notifications/incident-notifications"
+import { logActivity } from "@/lib/activity/log-activity"
+import { dispatchActivityNotifications } from "@/lib/activity/dispatch-activity-notifications"
 
 async function getTenantAndRequester(slug) {
   const supabase = await createServerSupabaseClient()
@@ -127,6 +128,20 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  const activity = await logActivity({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    entityType: "incident",
+    entityId: incident.id,
+    eventType: "incident_comment_added",
+    message: `Requester added a comment on ${incident.number}`,
+    metadata: {
+      number: incident.number,
+      comment_id: comment.id,
+      visibility: comment.visibility,
+    },
+  })
+
   try {
     const notifyTo = await getIncidentNotificationRecipient({
       tenantId: tenant.id,
@@ -145,12 +160,12 @@ export async function POST(req, { params }) {
   }
 
   try {
-    await notifyRequesterComment({
-      tenantId: tenant.id,
+    await dispatchActivityNotifications({
+      activity,
       incident,
     })
   } catch (notificationError) {
-    console.error("[notifications] requester comment failed", notificationError)
+    console.error("[activity-notifications] requester comment failed", notificationError)
   }
 
   return NextResponse.json({ comment })
