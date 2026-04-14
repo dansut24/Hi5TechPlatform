@@ -16,7 +16,7 @@ function Fallback({ theme }) {
 
 export default async function TenantSetPasswordRoutePage({ params }) {
   const theme = { ...themeMap.midnight, resolved: "midnight" }
-  const { slug } = await params
+  const { slug } = params
 
   return (
     <Suspense fallback={<Fallback theme={theme} />}>
