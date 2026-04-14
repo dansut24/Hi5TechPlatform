@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { signInWithPassword } from "@/lib/supabase/auth"
 
 function initialsFromName(name, slug) {
   const source = name?.trim() || slug?.trim() || "Tenant"
@@ -24,8 +23,11 @@ function getSafeNext(next, fallback) {
 
 export default function TenantLoginPage({ theme, tenant, branding, ready = false }) {
   const searchParams = useSearchParams()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [rememberDevice, setRememberDevice] = useState(false)
+  const [deviceName, setDeviceName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -37,6 +39,8 @@ export default function TenantLoginPage({ theme, tenant, branding, ready = false
       setError("")
 
       const trimmedEmail = email.trim()
+      const trimmedDeviceName = deviceName.trim()
+
       if (!trimmedEmail || !password) {
         setError("Please enter your email and password")
         return
@@ -44,12 +48,26 @@ export default function TenantLoginPage({ theme, tenant, branding, ready = false
 
       setLoading(true)
 
-      await signInWithPassword({
-        email: trimmedEmail,
-        password,
+      const res = await fetch(`/api/tenant/${tenant.slug}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+          rememberDevice,
+          deviceName: trimmedDeviceName || null,
+        }),
       })
 
-      window.location.href = next
+      const json = await res.json()
+
+      if (!res.ok) {
+        throw new Error(json.error || "Unable to sign in")
+      }
+
+      window.location.href = getSafeNext(next, json.redirectTo || fallbackPath)
     } catch (err) {
       setError(err.message || "Unable to sign in")
     } finally {
@@ -136,6 +154,29 @@ export default function TenantLoginPage({ theme, tenant, branding, ready = false
                 }}
               />
             </div>
+
+            <label className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${theme.card}`}>
+              <input
+                type="checkbox"
+                checked={rememberDevice}
+                onChange={(e) => setRememberDevice(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span>Remember this device</span>
+            </label>
+
+            {rememberDevice ? (
+              <div>
+                <div className={`mb-2 text-sm ${theme.muted}`}>Device name (optional)</div>
+                <input
+                  value={deviceName}
+                  onChange={(e) => setDeviceName(e.target.value)}
+                  className={`h-11 w-full rounded-2xl border px-4 text-sm outline-none ${theme.input}`}
+                  placeholder="Dan's iPhone"
+                  autoComplete="off"
+                />
+              </div>
+            ) : null}
 
             {error ? <div className="text-sm text-rose-400">{error}</div> : null}
 
