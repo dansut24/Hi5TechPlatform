@@ -42,7 +42,7 @@ async function getTenantAndAdmin(slug) {
 }
 
 export async function GET(_req, { params }) {
-  const { slug, templateId } = await params
+  const { slug, templateId } = params
   const ctx = await getTenantAndAdmin(slug)
   if (ctx.error) return ctx.error
 
