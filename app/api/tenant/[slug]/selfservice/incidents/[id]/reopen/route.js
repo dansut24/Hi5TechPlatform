@@ -42,7 +42,7 @@ async function getTenantAndRequester(slug) {
 }
 
 export async function POST(_req, { params }) {
-  const { slug, id } = await params
+  const { slug, id } = params
   const ctx = await getTenantAndRequester(slug)
   if (ctx.error) return ctx.error
 
