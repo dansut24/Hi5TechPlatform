@@ -5,11 +5,8 @@ import {
   sendIncidentResolvedEmail,
   sendIncidentUpdatedEmail,
 } from "@/lib/itsm/notifications"
-import {
-  notifyIncidentAssigned,
-  notifyIncidentResolved,
-} from "@/lib/notifications/incident-notifications"
 import { logActivity } from "@/lib/activity/log-activity"
+import { dispatchActivityNotifications } from "@/lib/activity/dispatch-activity-notifications"
 
 async function getTenantAndMember(slug) {
   const supabase = await createServerSupabaseClient()
@@ -143,88 +140,102 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: error?.message || "Failed to update incident" }, { status: 500 })
   }
 
+  const activityEvents = []
+
   if ("status" in body && currentIncident.status !== incident.status) {
-    await logActivity({
-      tenantId: tenant.id,
-      actorUserId: user.id,
-      entityType: "incident",
-      entityId: incident.id,
-      eventType: "incident_status_changed",
-      message: `Status changed from ${currentIncident.status} to ${incident.status}`,
-      metadata: {
-        number: incident.number,
-        from_status: currentIncident.status,
-        to_status: incident.status,
-      },
-    })
+    activityEvents.push(
+      await logActivity({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        entityType: "incident",
+        entityId: incident.id,
+        eventType: selectedStatus?.is_resolved ? "incident_resolved" : "incident_status_changed",
+        message: selectedStatus?.is_resolved
+          ? `Incident ${incident.number} resolved`
+          : `Status changed from ${currentIncident.status} to ${incident.status}`,
+        metadata: {
+          number: incident.number,
+          from_status: currentIncident.status,
+          to_status: incident.status,
+        },
+      })
+    )
   }
 
   if ("priority" in body && currentIncident.priority !== incident.priority) {
-    await logActivity({
-      tenantId: tenant.id,
-      actorUserId: user.id,
-      entityType: "incident",
-      entityId: incident.id,
-      eventType: "incident_priority_changed",
-      message: `Priority changed from ${currentIncident.priority} to ${incident.priority}`,
-      metadata: {
-        number: incident.number,
-        from_priority: currentIncident.priority,
-        to_priority: incident.priority,
-      },
-    })
+    activityEvents.push(
+      await logActivity({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        entityType: "incident",
+        entityId: incident.id,
+        eventType: "incident_priority_changed",
+        message: `Priority changed from ${currentIncident.priority} to ${incident.priority}`,
+        metadata: {
+          number: incident.number,
+          from_priority: currentIncident.priority,
+          to_priority: incident.priority,
+        },
+      })
+    )
   }
 
   if ("assigned_to" in body && currentIncident.assigned_to !== incident.assigned_to) {
-    await logActivity({
-      tenantId: tenant.id,
-      actorUserId: user.id,
-      entityType: "incident",
-      entityId: incident.id,
-      eventType: "incident_assigned",
-      message: incident.assigned_to ? `Incident assigned to user` : "Incident unassigned",
-      metadata: {
-        number: incident.number,
-        from_assigned_to: currentIncident.assigned_to,
-        to_assigned_to: incident.assigned_to,
-      },
-    })
+    activityEvents.push(
+      await logActivity({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        entityType: "incident",
+        entityId: incident.id,
+        eventType: "incident_assigned",
+        message: incident.assigned_to ? `Incident assigned to user` : "Incident unassigned",
+        metadata: {
+          number: incident.number,
+          from_assigned_to: currentIncident.assigned_to,
+          to_assigned_to: incident.assigned_to,
+        },
+      })
+    )
   }
 
   if (
     "assignment_group_id" in body &&
     currentIncident.assignment_group_id !== incident.assignment_group_id
   ) {
-    await logActivity({
-      tenantId: tenant.id,
-      actorUserId: user.id,
-      entityType: "incident",
-      entityId: incident.id,
-      eventType: "incident_group_changed",
-      message: "Assignment group updated",
-      metadata: {
-        number: incident.number,
-        from_assignment_group_id: currentIncident.assignment_group_id,
-        to_assignment_group_id: incident.assignment_group_id,
-      },
-    })
+    activityEvents.push(
+      await logActivity({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        entityType: "incident",
+        entityId: incident.id,
+        eventType: "incident_group_changed",
+        message: "Assignment group updated",
+        metadata: {
+          number: incident.number,
+          from_assignment_group_id: currentIncident.assignment_group_id,
+          to_assignment_group_id: incident.assignment_group_id,
+        },
+      })
+    )
   }
 
   if (
     "resolution_notes" in body &&
     String(currentIncident.resolution_notes || "") !== String(incident.resolution_notes || "")
   ) {
-    await logActivity({
-      tenantId: tenant.id,
-      actorUserId: user.id,
-      entityType: "incident",
-      entityId: incident.id,
-      eventType: "incident_resolution_updated",
-      message: "Resolution notes updated",
-      metadata: {
-        number: incident.number,
-      },
-    })
+    activityEvents.push(
+      await logActivity({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        entityType: "incident",
+        entityId: incident.id,
+        eventType: "incident_resolution_updated",
+        message: "Resolution notes updated",
+        metadata: {
+          number: incident.number,
+        },
+      })
+    )
   }
 
   try {
@@ -257,22 +268,14 @@ export async function PATCH(req, { params }) {
   }
 
   try {
-    if ("assigned_to" in body && incident.assigned_to) {
-      await notifyIncidentAssigned({
-        tenantId: tenant.id,
-        incident,
-        assignedTo: incident.assigned_to,
-      })
-    }
-
-    if (selectedStatus?.is_resolved) {
-      await notifyIncidentResolved({
-        tenantId: tenant.id,
+    for (const activity of activityEvents.filter(Boolean)) {
+      await dispatchActivityNotifications({
+        activity,
         incident,
       })
     }
   } catch (notificationError) {
-    console.error("[notifications] incident update failed", notificationError)
+    console.error("[activity-notifications] incident update failed", notificationError)
   }
 
   return NextResponse.json({ incident })
